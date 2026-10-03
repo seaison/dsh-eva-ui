@@ -264,6 +264,13 @@ window.__ModuleLoader__ = {
       // 2.3 倍下两者都不满足 → 必须走 lifted 而不是 hidden
       return free < needFull && free < needCompact;
     })());
+    check("三条（2 标签 + 仪表）宽度对齐：栈与面都用 stretch，标签内两端对齐", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return /align-items:\s*stretch/.test(all) && /justify-content:\s*space-between/.test(all) &&
+        !/\.eva-corner-stack\s*\{[^}]*align-items:\s*flex-end/.test(all);
+    })());
     check("面板自身用反向倍率抵消缩放（调仪表不该改面板字号）", (() => {
       const all = [...document.styleSheets].flatMap((sh) => {
         try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
