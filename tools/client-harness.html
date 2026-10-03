@@ -276,6 +276,40 @@ window.__ModuleLoader__ = {
       return Number.isFinite(min) && min > 60 && min < 400;
     })(), layer.querySelector(".eva-corner-stack").style.minWidth);
     // —— 右上角 TPS 波形面板 ——
+    check("两个方块都常亮（不再闪烁）", (() => {
+      const a = layer.querySelector(".eva-tps-head i");
+      const b = layer.querySelector(".eva-hud-head i");
+      if (!a || !b) return false;
+      return getComputedStyle(a).animationName === "none" && getComputedStyle(b).animationName === "none";
+    })(), (() => {
+      const a = layer.querySelector(".eva-tps-head i");
+      return a ? getComputedStyle(a).animationName : "(无元素)";
+    })());
+    check("TPS 面板高度不随读数位数变化（波形波动时仪表不变大）", (() => {
+      const panel = layer.querySelector(".eva-tps");
+      const now = layer.querySelector(".eva-tps-now");
+      const peak = layer.querySelector(".eva-tps-peak");
+      const avg = layer.querySelector(".eva-tps-avg");
+      const h = () => Math.round(panel.getBoundingClientRect().height);
+      const w = () => Math.round(panel.getBoundingClientRect().width);
+      now.textContent = "—"; peak.textContent = "—"; avg.textContent = "—";
+      const h1 = h(), w1 = w();
+      now.textContent = "88888"; peak.textContent = "88888"; avg.textContent = "88888";
+      const h2 = h(), w2 = w();
+      now.textContent = "1234567"; peak.textContent = "1234567"; avg.textContent = "1234567";
+      const h3 = h(), w3 = w();
+      now.textContent = "—"; peak.textContent = "—"; avg.textContent = "—";
+      return h1 === h2 && h2 === h3 && w1 === w2 && w2 === w3;
+    })(), (() => {
+      const panel = layer.querySelector(".eva-tps");
+      const now = layer.querySelector(".eva-tps-now");
+      const h = () => Math.round(panel.getBoundingClientRect().height);
+      now.textContent = "—"; const a = h();
+      now.textContent = "88888"; const b = h();
+      now.textContent = "—";
+      return `— 时 ${a}px / 88888 时 ${b}px`;
+    })());
+
     check("TPS 面板存在且结构完整（头/波形/页脚 + 折线）", (() => {
       const panel = layer.querySelector(".eva-tps");
       if (!panel) return false;
