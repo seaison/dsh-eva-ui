@@ -139,7 +139,7 @@ window.__ModuleLoader__ = {
     // —— <html> 上的开关标记 ——
     const root = document.documentElement;
     check("根元素带 data-eva-magi", root.hasAttribute("data-eva-magi"));
-    check("默认扫描线开", root.getAttribute("data-eva-scan") === "on", root.getAttribute("data-eva-scan"));
+    check("默认扫描线关（用户要求先去掉）", root.getAttribute("data-eva-scan") === "off", root.getAttribute("data-eva-scan"));
     check("默认硬边开", root.getAttribute("data-eva-edges") === "hard", root.getAttribute("data-eva-edges"));
     check("默认明朝体标题开", root.getAttribute("data-eva-mincho") === "on", root.getAttribute("data-eva-mincho"));
     check("默认网格关（避免默认就上测绘底纹）", root.getAttribute("data-eva-grid") === "off", root.getAttribute("data-eva-grid"));
@@ -152,8 +152,8 @@ window.__ModuleLoader__ = {
     check("暴露了全局开关钩子 __EVA_MAGI_THEME__", Boolean(api) && typeof api.set === "function" && typeof api.reset === "function");
 
     // ---- 选项行为 ----
-    api.set("scanlines", false);
-    check("set('scanlines', false) 立刻反映到 DOM", root.getAttribute("data-eva-scan") === "off");
+    api.set("scanlines", true);
+    check("set('scanlines', true) 立刻反映到 DOM（默认是关，所以这一步真的验到了 setter）", root.getAttribute("data-eva-scan") === "on");
     api.set("hardEdges", false);
     check("set('hardEdges', false) 切成 soft", root.getAttribute("data-eva-edges") === "soft");
     api.set("grid", true);
@@ -162,7 +162,7 @@ window.__ModuleLoader__ = {
     try { api.set("notAnOption", 1); } catch (error) { threw = true; }
     check("set() 对未知选项抛错（不静默忽略）", threw);
     check("选项写入了 localStorage", (() => {
-      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).scanlines === false; } catch { return false; }
+      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).scanlines === true; } catch { return false; }
     })());
 
     // ================= 回收 =================
@@ -175,17 +175,20 @@ window.__ModuleLoader__ = {
     check("回收后令牌层被注销", ctx.state.tokenDisposed === 1, String(ctx.state.tokenDisposed));
 
     // ================= 实例 2：选项持久化 =================
-    // 上一个实例把 scanlines=false / grid=true / hardEdges=false 写进了 localStorage，
+    // 上一个实例把 scanlines=true / grid=true / hardEdges=false 写进了 localStorage，
     // 新实例必须在 apply 时就恢复它们 —— 这是「刷新后设置还在」的机制本身。
     // 同时：开机序列的会话标记已写入，所以第二个实例不该再注册那个 effect。
     const ctx2 = makeCtx();
     exports.apply(ctx2);
-    check("新实例从 localStorage 恢复了选项（scanlines 仍为 off）", root.getAttribute("data-eva-scan") === "off");
+    check("新实例从 localStorage 恢复了选项（scanlines 仍为 on）", root.getAttribute("data-eva-scan") === "on");
     check("新实例恢复了 grid 开", root.getAttribute("data-eva-grid") === "on");
     check("开机序列每会话只放一次（第二个实例不注册它）", ctx2.state.effects.length === 3,
       String(ctx2.state.effects.length));
     globalThis.__EVA_MAGI_THEME__.reset();
-    check("reset() 回到默认值", root.getAttribute("data-eva-scan") === "on" && root.getAttribute("data-eva-grid") === "off");
+    check("reset() 回到默认值（扫描线关、网格关、硬边恢复）",
+      root.getAttribute("data-eva-scan") === "off" && root.getAttribute("data-eva-grid") === "off" &&
+        root.getAttribute("data-eva-edges") === "hard",
+      `scan=${root.getAttribute("data-eva-scan")} grid=${root.getAttribute("data-eva-grid")} edges=${root.getAttribute("data-eva-edges")}`);
     for (const effect of ctx2.state.effects) effect.dispose();
     try { localStorage.removeItem(OPTIONS_KEY); } catch {}
   } catch (error) {

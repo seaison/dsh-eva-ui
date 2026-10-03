@@ -36,7 +36,7 @@
 | **仪表簇**（右下角） | 竖排明朝体「中央教条区」+ 橙底反白标签块（`会話記録 / TRANSCRIPT`、`警戒態勢 通常`）+ 四路**真实**读数 + 方块流动画。读数取真实值：时刻、视口尺寸、会话正文字号、当前色板 —— 不做假遥测 |
 | **开机序列** | 每次会话首次加载放一段「NERV — MAGI SYSTEM / LINK ESTABLISHED」接续画面（明朝体大字 + 进度方块），约 2.6 秒后淡出 |
 | **形状层** | 圆角全部压到 0 —— EVA 的世界里没有圆角（`--dsw-radius-panel` 默认 28px，这是最激进的一刀，可以关） |
-| **质感层** | CRT 扫描线 + 暗角 + 同心雷达环 + 走行的场同步带 + 可选 48px 测绘网格 |
+| **质感层** | 暗角 + 同心雷达环 + 走行的场同步带 + 可选 48px 测绘网格。**CRT 扫描线默认关闭**（实测后按用户要求先去掉，`set("scanlines", true)` 可随时开回） |
 | **排版层** | 标题走**明朝体**：靠 `font-family` 的逐字符回退，拉丁仍吃系统无衬线，只有汉字落到 Hiragino Mincho ProN；全局等宽数字（`tabular-nums`），读数不会随内容抖动 |
 
 ### 元素装饰（直接作用于应用组件）
@@ -163,7 +163,7 @@ __EVA_MAGI_THEME__.set("hud", false)             // 关掉右下角仪表簇
 __EVA_MAGI_THEME__.set("boot", false)            // 关掉开机序列
 __EVA_MAGI_THEME__.set("beam", false)            // 关掉走行的场同步带
 __EVA_MAGI_THEME__.set("rings", false)           // 关掉同心雷达环
-__EVA_MAGI_THEME__.set("scanlines", false)       // 关掉 CRT 扫描线
+__EVA_MAGI_THEME__.set("scanlines", true)        // 打开 CRT 扫描线（默认关）
 __EVA_MAGI_THEME__.set("scanlineStrength", 0.25) // 扫描线浓度 0~1
 __EVA_MAGI_THEME__.set("hardEdges", false)       // 恢复 DSH 原来的圆角
 __EVA_MAGI_THEME__.set("grid", true)             // 打开测绘网格背景
@@ -182,7 +182,7 @@ __EVA_MAGI_THEME__.reset()                       // 全部回到默认值
 | `boot` | `true` | 开机序列，每个浏览器会话只放一次 |
 | `beam` | `true` | 走行的场同步带，9 秒一遍 |
 | `rings` | `true` | 同心雷达环底纹 |
-| `scanlines` | `true` | CRT 扫描线，3px 周期 |
+| `scanlines` | `false` | CRT 扫描线，3px 周期（默认关） |
 | `scanlineStrength` | `0.5` | 扫描线不透明度；浅色模式下自动再减半 |
 | `vignette` | `true` | 四角压暗 |
 | `grid` | `false` | 48px 测绘网格 |
