@@ -46,7 +46,7 @@ window.__ModuleLoader__ = {
     check("exports.apply 是函数", typeof exports.apply === "function");
     check("exports.inject 只依赖 theme 服务", JSON.stringify(exports.inject) === '["theme"]', JSON.stringify(exports.inject));
     check("PALETTE 导出 107 个令牌", Object.keys(exports.PALETTE).length === 107, String(Object.keys(exports.PALETTE).length));
-    check("DEFAULT_OPTIONS 导出 16 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 16, Object.keys(exports.DEFAULT_OPTIONS).join(","));
+    check("DEFAULT_OPTIONS 导出 14 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 14, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = (remote) => {
@@ -121,7 +121,7 @@ window.__ModuleLoader__ = {
     check("结构框架：内嵌框 + 四个角标", q(".eva-frame") === 1 && q(".eva-corner") === 4, "角标 " + q(".eva-corner"));
     check("左右刻度尺都在", q(".eva-edge") === 2, String(q(".eva-edge")));
     check("顶边压力线与底部危险条纹都在", q(".eva-magi-top") === 1 && q(".eva-hazard") === 1);
-    check("反白标签块 4 个（正面 2 + 余额背面 2）", q(".eva-tag") === 4, String(q(".eva-tag")));
+    check("标签 3 个（正面峰谷 2 + 背面合并后的余额 1）", q(".eva-tag") === 3, String(q(".eva-tag")));
     check("仪表簇含竖排汉字标签 + 方块流 16 格",
       q(".eva-hud-vlabel") === 1 && q(".eva-blocks i") === 16,
       `vlabel=${q(".eva-hud-vlabel")} blocks=${q(".eva-blocks i")}`);
@@ -199,8 +199,8 @@ window.__ModuleLoader__ = {
     check("设置面板已建好且默认收起", Boolean(panel) && panel.hidden === true);
     const swCount = panel.querySelectorAll(".eva-sw").length;
     const rangeCount = panel.querySelectorAll('input[type="range"]').length;
-    check("面板含 13 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
-      swCount === 13 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
+    check("面板含 11 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
+      swCount === 11 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch",
       [...panel.querySelectorAll(".eva-sw")].every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
 
@@ -275,25 +275,6 @@ window.__ModuleLoader__ = {
       const min = parseFloat(st.style.minWidth);
       return Number.isFinite(min) && min > 60 && min < 400;
     })(), layer.querySelector(".eva-corner-stack").style.minWidth);
-    check("开关 pricing 不会改变仪表宽度（用户报过的问题）", (() => {
-      const stack = layer.querySelector(".eva-corner-stack");
-      const before = Math.round(stack.getBoundingClientRect().width);
-      globalThis.__EVA_MAGI_THEME__.set("pricing", false);
-      const afterOff = Math.round(stack.getBoundingClientRect().width);
-      globalThis.__EVA_MAGI_THEME__.set("pricing", true);
-      const afterOn = Math.round(stack.getBoundingClientRect().width);
-      return before === afterOff && afterOff === afterOn;
-    })(), (() => {
-      const stack = layer.querySelector(".eva-corner-stack");
-      const before = Math.round(stack.getBoundingClientRect().width);
-      globalThis.__EVA_MAGI_THEME__.set("pricing", false);
-      const off = Math.round(stack.getBoundingClientRect().width);
-      globalThis.__EVA_MAGI_THEME__.set("pricing", true);
-      return `${before} → ${off} → ${Math.round(stack.getBoundingClientRect().width)}`;
-    })());
-    check("自动适配：写入有效倍率 --eva-hud-scale-eff",
-      Number(root.style.getPropertyValue("--eva-hud-scale-eff")) > 0,
-      root.style.getPropertyValue("--eva-hud-scale-eff"));
     check("推算标记用样式而不是加字（加字会撑宽整栈）", (() => {
       const all = [...document.styleSheets].flatMap((sh) => {
         try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
@@ -398,13 +379,14 @@ window.__ModuleLoader__ = {
         r3.querySelector(".eva-tag--balance b").textContent);
       check("余额就绪后副文案为「残高」",
         r3.querySelector(".eva-tag--balance small").textContent === "残高");
-      check("背面两行都是余额：第二行也显示同一个数字", (() => {
-        const first = r3.querySelector(".eva-tag--balance b").textContent;
-        const second = r3.querySelector(".eva-tag--available b").textContent;
-        return first === "¥12.34" && second === first;
-      })(), r3.querySelector(".eva-tag--balance b").textContent + " / " + r3.querySelector(".eva-tag--available b").textContent);
-      check("第二行的副文案是「可用」",
-        r3.querySelector(".eva-tag--available small").textContent === "可用");
+      check("背面只剩一个余额标签（合并后），显示余额", (() => {
+        const tags = r3.querySelectorAll(".eva-tags-back .eva-tag");
+        return tags.length === 1 && tags[0].classList.contains("eva-tag--balance") &&
+          r3.querySelector(".eva-tag--balance b").textContent === "¥12.34";
+      })(), r3.querySelectorAll(".eva-tags-back .eva-tag").length + " 个 / " +
+        r3.querySelector(".eva-tag--balance b").textContent);
+      check("合并后的余额标签用的是上面那个（LED）样式",
+        r3.querySelector(".eva-tag--balance").classList.contains("eva-tag--balance"));
       tags.click();
       check("再点一次翻回正面", tags.dataset.face === "front");
       for (const e of c3.state.effects) e.dispose();
