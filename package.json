@@ -1,6 +1,6 @@
 {
   "name": "dsh-eva-magi-theme",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "EVA / MAGI 主题皮肤：把 NERV 中央教条区的界面语言装进 DSH Web GUI（--dsw-* 令牌层覆盖 + CRT 扫描线 / 硬边 / 等宽数字，明朝体汉字标题）",
   "keywords": [
     "dsh",

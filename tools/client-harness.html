@@ -121,11 +121,13 @@ window.__ModuleLoader__ = {
 
     // —— 仪表读数是真实的，不是假遥测 ——
     const clockText = layer.querySelector(".eva-clock")?.textContent ?? "";
-    check("時刻 是真实时钟（HH:MM:SS.cc）", /^\d{2}:\d{2}:\d{2}\.\d{2}$/.test(clockText), clockText);
+    check("時刻 是真实时钟（HH:MM:SS）", /^\d{2}:\d{2}:\d{2}$/.test(clockText), clockText);
     const viewText = layer.querySelector(".eva-view")?.textContent ?? "";
     check("表示 取自真实视口尺寸", /^\d+×\d+$/.test(viewText), viewText);
     const stateText = layer.querySelector(".eva-state")?.textContent ?? "";
     check("状態 取自真实色板", stateText === "DARK" || stateText === "LIGHT", stateText);
+    const fit = layer.querySelector(".eva-corner-stack")?.dataset.fit ?? "";
+    check("仪表簇有自动避让档位（无输入框时默认 full）", fit === "full", fit);
 
     // —— 开机序列 ——
     const boot = document.body.querySelector(".eva-boot");
