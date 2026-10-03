@@ -229,6 +229,32 @@ window.__ModuleLoader__ = {
     const slotRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
     }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    // —— 输入框整体 + 弹出菜单：EVA「内部/外部」面板语言 ——
+    const boxRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText && /data-composer-card|data-composer-input|role="menu"/.test(r.selectorText));
+    check("输入框/菜单样式用官方钩子（data-composer-card / data-composer-input / role=menu）",
+      boxRules.length >= 5, `${boxRules.length} 条规则`);
+    check("这些规则不碰尺寸（卡片 877×98、整行 98px 都不许变）", (() => {
+      const text = boxRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      return !/(^|[;{ ])(width|height|min-width|min-height|padding|font-size|display|flex)\s*:/.test(text);
+    })());
+    check("这些规则只用字面量色（元素在覆盖层之外，var(--eva-*) 取不到）", (() => {
+      const text = boxRules.map((r) => r.cssText).join(" ");
+      return !/var\(--eva-/.test(text) && /255, 230, 0/.test(text);
+    })());
+    check("菜单规则带 [data-menu-material] —— 否则被更靠后的同特异性弹层规则盖掉", (() => {
+      // 只取直接的属性选择器形式；:is([role=menu],…) 那条弹层规则里的子串也会命中
+      // [role="menu"]，所以必须显式排除 :is(
+      const menuRules = boxRules.filter((r) =>
+        r.selectorText.includes('[role="menu"]') && !r.selectorText.includes(":is("));
+      return menuRules.length >= 3 && menuRules.every((r) => r.selectorText.includes("data-menu-material"));
+    })(), (() => {
+      const menuRules = boxRules.filter((r) =>
+        r.selectorText.includes('[role="menu"]') && !r.selectorText.includes(":is("));
+      return menuRules.map((r) => (r.selectorText.includes("data-menu-material") ? "✓" : "✗") + r.selectorText.slice(0, 40)).join(" | ");
+    })());
+
     // —— 访问模式（权限）选择器：EVA「内部/外部」面板语言 ——
     const permRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
