@@ -24,9 +24,13 @@
 
 ### 修复
 
-- 移除 `dsh.client.inject` 里对官方主题包的引用。浏览器半边不 `require` 任何模块，
-  只依赖 Cordis 的 `theme` 服务注入，声明模块级依赖只会给启动图多加一次解析要求——
-  而解析失败是「响的」，代价不成比例。
+- 移除 `dsh.client.inject` 里对官方主题包的引用，并移除 `peerDependencies`。
+  浏览器半边不 `require` 任何模块、只依赖 Cordis 的 `theme` 服务注入，声明模块级依赖
+  与包级 peer 依赖只会给安装/启动图多加两次解析要求——而解析失败是「响的」，
+  代价不成比例。
+- 新增 `tools/verify-manifest.mjs`：把「包名 / 模块 id / patch name 三处一致」
+  「`exports["./client"]` 与 `main` 指向的文件真实存在」这类**装错就静默失效**的
+  不变量钉成测试，并接入 `npm test`。
 
 ### 说明
 

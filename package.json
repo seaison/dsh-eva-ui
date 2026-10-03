@@ -38,13 +38,11 @@
       "immediately": true
     }
   },
-  "peerDependencies": {
-    "@deepseek-ai/dsh-client-ui-theme": "*"
-  },
   "scripts": {
     "docs": "node tools/gen-tokens-doc.mjs",
     "check": "node --check lib/client.js && node --check lib/index.js && node tools/gen-tokens-doc.mjs --check",
-    "test": "npm run test:tokens && npm run test:client",
+    "test": "npm run test:manifest && npm run test:tokens && npm run test:client",
+    "test:manifest": "node tools/verify-manifest.mjs",
     "test:tokens": "node tools/verify-tokens.mjs",
     "test:client": "node tools/run-client-harness.mjs",
     "prepublishOnly": "npm run check && npm test"
