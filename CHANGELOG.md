@@ -2,6 +2,45 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.16.2] —— 未发布
+
+### 修复
+
+- **P3：侧栏分组标题补上亮黄**（上一版漏掉了）。
+
+  实测确认根因：`data-slot="sidebar.panellist"` 这类 slot **只是 portal 锚点、不是容器** ——
+  插件标题的真实祖先链是 `nav.WYye1W_panelList → div.WYye1W_root`，
+  **根本不在那个 slot 底下**，所以早先那条 `[data-slot="sidebar.panellist"] > * > button`
+  永远匹配不到。
+
+  **改法**：DSH 的类名是 CSS-module 的 `Hash_name` 形式，于是改用**可读后缀**匹配 ——
+  `[data-slot="sidebar"] [class*="_panelTitle"]` / `[class*="_sectionLabel"]` /
+  `[class*="_panelRow"]` / `[class*="_sectionHeader"]`。哈希前缀变了也不受影响，
+  比写死 `.tPVXea_sectionLabel` 稳健得多；作用域锚在 `[data-slot="sidebar"]`
+  （实测它确实是侧栏一切的祖先）。
+
+  **同时纠正一处我上次报告里的错误**：「未分组」**不是分组标题**，它是 workspace 行
+  （`_projectText`，与普通工作区行共用同一组件），无法单独选中 ——
+  保持行标题原色以保证可读，没有硬上色。
+
+  **实测**：
+
+  ```
+  插件标题     rgb(255,230,0)  weight 700  spacing 1.4px
+  插件行(按钮) rgb(255,230,0)
+  工作区标题   rgb(255,230,0)  weight 700
+  工作区区段头 rgb(255,230,0)
+  未分组(行)   rgb(232,228,220)   ← 保持原色
+  ```
+
+### 过程记录：反引号禁忌我又犯了一次
+
+在 CSS 注释里写了反引号 —— 整段 CSS 是 JS 模板字符串，反引号**提前结束字符串**，
+语法直接错。`node --check` 立刻抓到（这条守卫有效，但拦在写入之后，太晚）。
+已把这条禁忌写进 `docs/DESIGN.md` 的显眼位置（连同「注释里也不要写 `${`」）。
+
+断言：宿主侧 46 项 + 浏览器侧 145 项。
+
 ## [0.16.1] —— 未发布
 
 ### 修复

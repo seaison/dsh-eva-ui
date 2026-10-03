@@ -233,6 +233,22 @@ window.__ModuleLoader__ = {
     const slotRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
     }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    // —— P3：侧栏分组标题 ——
+    const headRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText && /_panelTitle|_sectionLabel|_panelRow|_sectionHeader/.test(r.selectorText));
+    check("侧栏分组标题用「类名可读后缀」匹配（哈希前缀变了也不受影响）", (() => {
+      // DSH 的类名是 CSS-module 的 Hash_name 形式：用 [class*="_sectionLabel"]
+      // 匹配可读后缀，比写死 .tPVXea_sectionLabel 稳健得多。
+      // 这里同时禁止在类选择器里写死哈希前缀（.xxxxxx_name 这种形态）。
+      return headRules.length >= 2 && headRules.every((r) => !/\.[A-Za-z0-9]{5,8}_/.test(r.selectorText));
+    })(), (() => headRules.map((r) => r.selectorText.slice(0, 52)).join(" | ") || "(未找到)" )());
+    check("侧栏分组标题锚在 [data-slot=sidebar] 且限定深色主题", (() =>
+      headRules.length >= 2 &&
+      headRules.every((r) => r.selectorText.includes('[data-slot="sidebar"]') &&
+        r.selectorText.includes("data-ds-dark-theme")))(),
+      (() => headRules.length + " 条"));
+
     // —— P1 守卫：所有「黑底贴片」样式必须限定在深色主题 ——
     const allRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }

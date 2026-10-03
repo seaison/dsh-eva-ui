@@ -215,3 +215,30 @@ label-primary   浅色 #16181c（近黑）
 
 正确做法：**切分时跟踪注释状态**，并断言「注释与改动前逐字一致」「改动只发生在选择器行」
 「无遗漏」「前缀不落在注释前」四项校验全部通过才算改完。
+
+## 禁忌（踩过两次）：注释里不能出现反引号
+
+`lib/client.js` 的整段 CSS 是 **JS 模板字符串**（`const SKIN_CSS = \`...\``）。
+在 CSS 注释里写一个反引号，就会**提前结束这个字符串**，整份客户端脚本语法错误 ——
+而且是静默的：实机表现是插件完全不加载（探测输出全是 `undefined`）。
+
+`node --check lib/client.js` 必定能抓到（每次改完都必须跑）。
+
+顺带一条同类禁忌：CSS 是模板字符串，所以注释里也不要写 `${`（会被当插值解析）。
+
+## 技法：用「类名可读后缀」匹配没有 data-slot 的元素
+
+DSH 的类名是 CSS-module 的 `Hash_name` 形式（`tPVXea_sectionLabel`、`WYye1W_panelTitle`…）。
+对**没有 data-slot 可用**的元素，写死哈希很脆（换个版本就失效），但可以匹配可读后缀：
+
+```css
+[data-slot="sidebar"] [class*="_sectionLabel"]{color:#ffe600}
+```
+
+哈希前缀变了照旧生效，改动只在**组件改名**时才失效。作用域锚在最近的有钩子的祖先上，
+把误伤范围压到最小。测试台有一条断言禁止在类选择器里写死哈希前缀（`.xxxxxx_name` 形态）。
+
+**另一个必须记住的事实**：`data-slot` 元素大多带 `display:contents`，而且**只是 portal 锚点、
+不是容器** —— 例如插件标题的真实祖先链是 `nav.WYye1W_panelList → div.WYye1W_root`，
+**不在 `data-slot="sidebar.panellist"` 底下**。所以「从 slot 往下选」只在部分情况下成立，
+写之前必须实测链路。
