@@ -250,26 +250,34 @@ window.__ModuleLoader__ = {
       return bands.map((r) => (r.selectorText || "").slice(0, 34) + "→" +
         (/background-size:\s*5px 100%/.test(r.cssText) ? "5px" : "非5px")).join(" | ");
     })());
-    check("侧栏警示带与屏幕底部那条完全同款（琥珀 + 5px/5px 斜纹）", (() => {
-      // 用规范化后的**原始声明文本**比对，而不是 style.backgroundImage：
-      // .eva-hazard 用的是 background 简写且内含 var()，CSSOM 无法把含 var() 的简写
-      // 展开成 longhand，style.backgroundImage 会返回空字符串（踩过）。
-      // 这里直接要求两条规则都含有那个**逐字符相同的**渐变定义。
-      const CANON = "repeating-linear-gradient(45deg,var(--dsw-alias-state-warn-primary)05px,rgba(0,0,0,0)5px10px)";
+    check("侧栏警示带与屏幕底部那条：同色系、同斜纹、**同亮度**", (() => {
+      // 两条的亮度表达方式不同但必须等价：
+      //   底部 .eva-hazard  → 元素 opacity:.4 压暗（整条一起压）
+      //   侧栏 .WYye1W_root → 不能对整个侧栏用 opacity（会把内容一起淡化），
+      //                       所以把 40% 折进颜色 color-mix(... 40%, transparent)
+      // 合成结果相同（琥珀 40% alpha）。这里断言**数值等价**，不锁实现写法。
+      const CANON_PATTERN = "repeating-linear-gradient(45deg,";
       const find = (sel) => p4Rules.find((r) => (r.selectorText || "").trim() === sel);
       const side = find("html[data-eva-magi] body[data-ds-dark-theme] .WYye1W_root");
       const tape = find(".eva-hazard");
       if (!side || !tape) return false;
-      const has = (r) => String(r.cssText || "").replace(/\s+/g, "").includes(CANON);
-      return has(side) && has(tape);
+      const flat = (r) => String(r.cssText || "").replace(/\s+/g, "");
+      const sc = flat(side), tc = flat(tape);
+      const sideFade = parseFloat((/state-warn-primary\)(\d+(?:\.\d+)?)%/.exec(sc) || [])[1] ?? "100") / 100;
+      const tapeFade = parseFloat((/opacity:([\d.]+)/.exec(tc) || [])[1] ?? "1");
+      return sc.includes(CANON_PATTERN) && tc.includes(CANON_PATTERN) &&
+        sc.includes("var(--dsw-alias-state-warn-primary)") &&
+        tc.includes("var(--dsw-alias-state-warn-primary)") &&
+        Math.abs(sideFade - tapeFade) < 0.001;
     })(), (() => {
-      const CANON = "repeating-linear-gradient(45deg,var(--dsw-alias-state-warn-primary)05px,rgba(0,0,0,0)5px10px)";
       const find = (sel) => p4Rules.find((r) => (r.selectorText || "").trim() === sel);
       const side = find("html[data-eva-magi] body[data-ds-dark-theme] .WYye1W_root");
       const tape = find(".eva-hazard");
       if (!side || !tape) return "(未找到规则)";
-      const has = (r) => String(r.cssText || "").replace(/\s+/g, "").includes(CANON);
-      return `侧栏${has(side) ? "✓" : "✗"} 底部${has(tape) ? "✓" : "✗"} 同一渐变定义`;
+      const flat = (r) => String(r.cssText || "").replace(/\s+/g, "");
+      const sideFade = parseFloat((/state-warn-primary\)(\d+(?:\.\d+)?)%/.exec(flat(side)) || [])[1] ?? "100");
+      const tapeFade = parseFloat((/opacity:([\d.]+)/.exec(flat(tape)) || [])[1] ?? "1") * 100;
+      return `侧栏 ${sideFade}% vs 底部 ${tapeFade}%`;
     })());
 
     // —— P3：侧栏分组标题 ——
