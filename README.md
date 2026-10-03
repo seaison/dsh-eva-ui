@@ -163,9 +163,10 @@ ctx.theme.overrideTokens("dsh-eva-magi-theme", {
 ## 开发
 
 ```bash
-npm test                 # 打包不变量 + 令牌核对 + 浏览器半边端到端测试
+npm test                 # 打包不变量 + 令牌核对 + 颜色关系 + 浏览器半边端到端测试
 npm run test:manifest    # 只跑打包不变量（包名/id/patch 三处一致、文件都存在、零依赖）
 npm run test:tokens      # 只跑 token 检查
+npm run test:contrast    # 只跑对比度与极性核对（加 --report 打印全表）
 npm run test:client      # 只跑浏览器半边测试（需要本机有 Chrome）
 npm run check            # 语法检查 + 校验文档与代码一致（提交前）
 npm run docs             # 重新生成 docs/TOKENS.md 与 docs/palette.html
@@ -191,6 +192,19 @@ npm run docs             # 重新生成 docs/TOKENS.md 与 docs/palette.html
 `tools/run-client-harness.mjs` 用无头 Chrome 跑它并把结果变成退出码（找不到 Chrome 时
 跳过而不是失败）。这是「拿不到 GUI 截图」的正面替代：**外观要你目测，行为由测试保证**。
 
+### 颜色关系怎么测
+
+`tools/verify-contrast.mjs` 做两件事，都是我在暗色配色上没法靠肉眼判断的：
+
+- **对比度**（WCAG 2.1）：46 个前景/背景组合，正文 4.5:1、大字与 UI 元件 3:1。
+  暗底会让文字显得比实际更清楚，肉眼判断在这里尤其不可靠。
+- **极性**：官方色板里每个令牌在浅/深两套各有一个值，「谁更亮」是设计意图的一部分。
+  如果覆盖把某个表面在浅色方案里弄得比深色方案还暗，就是把主题搞反了——这种错误在
+  代码里看不出来，在截图里一眼就看得见。透明令牌与官方等值的令牌会跳过。
+
+这两个检查在写这一版时**各抓到一个真实缺陷**：浅色方案的 `label-tertiary`（4.29:1）
+与 `label-caption`（2.47:1）都不达标，`brand-primary-invert` 的浅/深极性和官方相反。
+
 改 `lib/client.js` 里的 `PALETTE` 表 → 跑 `npm run docs` → 用浏览器打开
 `docs/palette.html`，就能在无需装卸皮肤的情况下看到浅色/深色两侧的结果。
 
@@ -205,6 +219,7 @@ lib/client.js            浏览器半边：令牌表 + 皮肤样式表 + 选项�
 cordis.patch.yml         挂载声明
 tools/verify-manifest.mjs 打包不变量：三处名字一致、路径存在、零依赖
 tools/verify-tokens.mjs  令牌核对（形状 / 重复键 / 与官方令牌名比对）
+tools/verify-contrast.mjs 颜色关系：WCAG 对比度 + 覆盖前后的浅/深极性一致性
 tools/gen-tokens-doc.mjs 由代码生成文档
 tools/client-harness.html 浏览器半边测试台（模拟 ModuleLoader 与 ctx）
 tools/run-client-harness.mjs 用无头 Chrome 跑测试台并转成退出码
