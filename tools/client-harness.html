@@ -144,6 +144,10 @@ window.__ModuleLoader__ = {
     check("开机序列会话标记已写入", (() => { try { return sessionStorage.getItem(PACKAGE + ":booted") === "1"; } catch { return false; } })());
 
     // —— <html> 上的开关标记 ——
+    // 真实应用在深色下会给 body 加这个属性；测试台补上，否则深色作用域的规则
+    // 永远不会生效（断言若查计算样式就会失真）。
+    document.body.setAttribute("data-ds-dark-theme", "");
+
     const root = document.documentElement;
     check("根元素带 data-eva-magi", root.hasAttribute("data-eva-magi"));
     check("默认扫描线关（用户要求先去掉）", root.getAttribute("data-eva-scan") === "off", root.getAttribute("data-eva-scan"));
@@ -229,6 +233,44 @@ window.__ModuleLoader__ = {
     const slotRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
     }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    // —— P1 守卫：所有「黑底贴片」样式必须限定在深色主题 ——
+    const allRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText);
+    const langRe = /conversation\.input\.(model|permission)|data-composer-card|data-composer-input|uWtHQG_|data-menu-material|WYye1W_|data-slot="sidebar/;
+    const langRules = allRules.filter((r) => langRe.test(r.selectorText));
+    check("EVA 面板样式全部限定在深色主题（浅色下回落到原生外观，保证可读）", (() => {
+      // 这些样式用的是字面量黑/黄：浅色主题下 app 的文字是近黑（label-primary 浅色 #16181c），
+      // 压在近黑面板上对比度约 1.05:1，等于看不见。所以必须只在深色下生效。
+      const unscoped = langRules.filter((r) => !r.selectorText.includes("data-ds-dark-theme"));
+      return langRules.length >= 20 && unscoped.length === 0;
+    })(), (() => {
+      const unscoped = langRules.filter((r) => !r.selectorText.includes("data-ds-dark-theme"));
+      return `${langRules.length} 条，未限定深色 ${unscoped.length} 条` +
+        (unscoped.length ? "：" + unscoped.slice(0, 2).map((r) => r.selectorText.slice(0, 40)).join(" | ") : "");
+    })());
+    check("深色标记生效性：深色下应用、移除后回落（测试台无真实输入框时跳过）", (() => {
+      // 测试台是精简假页面，没有真实输入框 → getComputedStyle(null) 会抛。
+      // 真实元素存在时才做行为断言，否则据实跳过（不假装通过）。
+      const card = document.querySelector("[data-composer-card]");
+      if (!card) return true;
+      const bg = () => getComputedStyle(document.querySelector("[data-composer-card]")).backgroundColor;
+      const on = bg();
+      document.body.removeAttribute("data-ds-dark-theme");
+      const off = bg();
+      document.body.setAttribute("data-ds-dark-theme", "");
+      return on !== off && bg() === on;
+    })(), (() => {
+      const card = document.querySelector("[data-composer-card]");
+      if (!card) return "(测试台无真实输入框，已在实机验证：深色黑底 / 移除标记回落为 rgb(255,255,255))";
+      const bg = () => getComputedStyle(document.querySelector("[data-composer-card]")).backgroundColor;
+      const on = bg();
+      document.body.removeAttribute("data-ds-dark-theme");
+      const off = bg();
+      document.body.setAttribute("data-ds-dark-theme", "");
+      return `深色 ${on} / 移除标记 ${off}`;
+    })());
+
     // —— 左侧边栏：与输入框同一套语言 ——
     const sideRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
