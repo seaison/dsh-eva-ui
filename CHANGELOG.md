@@ -2,6 +2,53 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.0] —— 未发布
+
+### 新增
+
+- **余额数字突出显示**（按要求**不动两个标签的位置和尺寸**）。
+  只用绘制类属性：暗底 + 橙色字、字重加粗、`text-shadow` 辉光、
+  `box-shadow` 内描边（不占布局）+ 外发光。字号/内边距/行高一行未改。
+  实测标签仍是 **201×29**，与改动前一致；只有 `background` 从橙变成 `rgb(11,11,11)`、
+  字色变成橙色 accent。
+- **今日已用：本地记账（token 数 × 价目表）**。
+  - 宿主半边订阅 `session/event`，把 `assistant/message` 事件里的
+    `{inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens}` 连同模型名与
+    时间戳记成精简记录（**只记 token 数与模型名，不记任何对话内容**），
+    保留 36 小时、上限 400 条，随余额一起回传。
+  - 计价在浏览器半边做：价目表与峰谷规则只有这一份，宿主不复制 ——
+    否则同一套规则维护两处，改一处忘一处就会算错钱。
+  - 计价口径：命中 = `cacheReadTokens × 0.02/0.04`、未命中 = `inputTokens +
+    cacheWriteTokens × 1/2`、输出 = `outputTokens × 4/8`（元/百万，空闲/高峰；
+    Pro 档为 3 倍）。逐条按**各自时刻**的峰谷价计算。
+  - 同一 (turn, step) 只取最后一次：重试会在日志里留下多条 `assistant/message`，
+    全加会把同一轮算两遍。
+  - 一次翻面只发**一次**请求，同时刷新余额与今日已用。
+  - 界面标注「按价目表本地概算，非账单」——价目表硬编码，官方调价即过期。
+
+### 已验证 / 未验证（如实记录）
+
+- ✅ 计价逻辑：132 项断言，含北京日界、峰谷两档、重试去重、Pro 档、逐条按各自时刻计价、
+  缺字段不产生 NaN、无记录显示 ¥0.00。
+- ✅ 宿主路由：实机确认返回 `usage: []` 且无报错。
+- ✅ 余额突出显示：实机确认几何未变（201×29）、配色已变。
+- ⚠️ **未验证**：`session/event` 是否真的把用量事件送到宿主。
+  我想在测试实例里真发一条消息来产生用量，但 **CDP 驱动输入框没成功**
+  （探针返回 `undefined`、页面里没出现用户气泡）——所以"记录数 0"证明不了订阅有问题。
+  这一步需要在真实界面里发一条消息来确认：翻面看「今日」是否变成正数。
+
+### 踩到的坑（都写进注释了）
+
+- `remote.session` 这类**作用域远程服务必须写进 inject 才会被建立**；只注
+  `"remote.session"` 时访问 `scope.remote` 会抛 `cannot get property "remote" without inject`，
+  而单独取 `scope["remote.session"]` 拿到的是通用代理（没有 `listSessions`）。
+  两者要**一起注入**（官方 settings-account 也是 `["remote","remote.account"]`）。
+- 客户端的方法名与宿主不同：客户端是 `list`/`page`/`projections`，
+  宿主是 `listSessions`/`readSessionState`；`page` 还要驱动 `{address, throughSeq}` 游标分页。
+  最终没走客户端读取这条路，改用宿主 `session/event` 事件流。
+- `.eva-tag--balance` 的样式规则写在基础规则 `.eva-tag` **之前**，同权重被后者盖掉
+  （底色仍是橙）——改用 `.eva-tag.eva-tag--balance` 提权，不依赖源码顺序。
+
 ## [0.7.2] —— 未发布
 
 ### 修复

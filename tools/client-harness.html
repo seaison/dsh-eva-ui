@@ -50,10 +50,16 @@ window.__ModuleLoader__ = {
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = (remote) => {
-      const state = { effects: [], tokenCalls: [], tokenDisposed: 0 };
+      const state = { effects: [], tokenCalls: [], tokenDisposed: 0, injects: [] };
       return {
         state,
         ...(remote ? { remote } : {}),
+        // 模拟 Cordis 的作用域注入：依赖就绪时用子上下文回调。
+        // remote.session 这类作用域服务必须走 inject 才会被建立（实机验证过）。
+        inject(deps, callback) {
+          state.injects.push(deps);
+          callback({ remote: remote || {}, effect: (fn) => { const d = fn(); return d; } });
+        },
         effect(fn, label) {
           const dispose = fn();
           state.effects.push({ label, dispose });
@@ -180,6 +186,76 @@ window.__ModuleLoader__ = {
     check("高峰中 10:00 的下一切换点是当日 12:00", nextAt === bj(2026, 10, 8, 12),
       new Date(nextAt * 1000).toISOString());
     check("空闲中 12:30 的下一切换点是当日 14:00", exports.nextPricingChangeAt(bj(2026, 10, 8, 12, 30)) === bj(2026, 10, 8, 14));
+
+    // —— 今日已用：本地记账（tokens × 价目表）——
+    // 金额算错比不显示更糟，所以这里全是确定性断言。
+    const bjm = (...a) => bj(...a) * 1000; // bj 返回秒，事件时间是毫秒
+    check("日界：北京 15:00 归到当天 00:00，而不是 UTC 日界",
+      exports.beijingDayStart(bjm(2026, 10, 8, 15)) === bjm(2026, 10, 8, 0));
+    check("日界：北京 01:00 仍属当天", exports.beijingDayStart(bjm(2026, 10, 8, 1)) === bjm(2026, 10, 8, 0));
+    check("日界：北京 00:00 前一秒属于前一天",
+      exports.beijingDayStart(bjm(2026, 10, 8, 0) - 1000) === bjm(2026, 10, 7, 0));
+
+    const offSec = bj(2026, 10, 8, 8);   // 周四 08:00 = 空闲
+    const peakSec = bj(2026, 10, 8, 10); // 周四 10:00 = 高峰
+    const M = 1e6;
+    check("计价：空闲 Flash ＝ 命中 0.02 / 未命中 1 / 输出 4（元每百万）",
+      exports.costOfUsage({ cacheReadTokens: M }, offSec, "flash") === 0.02 &&
+        exports.costOfUsage({ inputTokens: M }, offSec, "flash") === 1 &&
+        exports.costOfUsage({ outputTokens: M }, offSec, "flash") === 4);
+    check("计价：高峰正好是空闲的两倍",
+      exports.costOfUsage({ cacheReadTokens: M }, peakSec, "flash") === 0.04 &&
+        exports.costOfUsage({ inputTokens: M }, peakSec, "flash") === 2 &&
+        exports.costOfUsage({ outputTokens: M }, peakSec, "flash") === 8);
+    check("计价：Pro 是 Flash 的三倍（输出 13.5）",
+      exports.costOfUsage({ outputTokens: M }, offSec, "pro") === 13.5);
+    check("计价：缓存写入并入未命中桶（命中 0.5M + 未命中 0.1M + 输出 0.02M 空闲 ＝ 0.19）",
+      Math.abs(exports.costOfUsage(
+        { cacheReadTokens: 0.5 * M, inputTokens: 0.1 * M, outputTokens: 0.02 * M }, offSec, "flash",
+      ) - 0.19) < 1e-9);
+    check("计价：缺字段/非法值当 0，绝不产生 NaN",
+      exports.costOfUsage({}, offSec, "flash") === 0 &&
+        exports.costOfUsage({ inputTokens: "x" }, offSec, "flash") === 0);
+    check("计价：认不出的档位退回 Flash", exports.costOfUsage({ inputTokens: M }, offSec, "nope") === 1);
+
+    const dayStartMs = bjm(2026, 10, 8, 0);
+    const msgEvent = (turn, step, time, usage, model) => ({
+      type: "assistant/message", time, data: { turn, step, usage, message: { model } },
+    });
+    check("汇总：今天之前的事件不计入",
+      exports.summarizeUsage([msgEvent(1, 1, dayStartMs - 60000, { outputTokens: M })], dayStartMs).cost === 0);
+    check("汇总：同一 (turn,step) 只取最后一次 —— 重试不会重复计费", (() => {
+      const r = exports.summarizeUsage([
+        msgEvent(1, 1, dayStartMs + 1000, { outputTokens: M }),
+        msgEvent(1, 1, dayStartMs + 2000, { outputTokens: 2 * M }),
+      ], dayStartMs);
+      return r.calls === 1 && Math.abs(r.cost - 8) < 1e-9; // 只算 2M@空闲=8；若两条都算会是 12
+    })());
+    check("汇总：逐条按各自时刻的峰谷计价（空闲 4 + 高峰 8 ＝ 12）", (() => {
+      const r = exports.summarizeUsage([
+        msgEvent(1, 1, bj(2026, 10, 8, 8) * 1000, { outputTokens: M }),
+        msgEvent(2, 1, bj(2026, 10, 8, 10) * 1000, { outputTokens: M }),
+      ], dayStartMs);
+      return r.calls === 2 && Math.abs(r.cost - 12) < 1e-9;
+    })());
+    check("汇总：累计 token ＝ 命中 + 未命中 + 写出 + 输出", (() => {
+      const r = exports.summarizeUsage([
+        msgEvent(1, 1, dayStartMs + 1000, { inputTokens: 100, cacheReadTokens: 200, cacheWriteTokens: 300, outputTokens: 400 }),
+      ], dayStartMs);
+      return r.tokens === 1000;
+    })());
+    check("汇总：Pro 模型走 Pro 价（输出 1M 空闲 ＝ 13.5）", (() => {
+      const r = exports.summarizeUsage([msgEvent(1, 1, bj(2026, 10, 8, 8) * 1000, { outputTokens: M }, "deepseek-v4-pro")], dayStartMs);
+      return Math.abs(r.cost - 13.5) < 1e-9;
+    })());
+    check("汇总：没有 usage 或非 assistant/message 的事件被跳过", (() => {
+      const r = exports.summarizeUsage([
+        { type: "turn/start", time: dayStartMs + 1000, data: {} },
+        { type: "assistant/message", time: dayStartMs + 2000, data: { turn: 1, step: 1 } },
+      ], dayStartMs);
+      return r.calls === 0 && r.cost === 0;
+    })());
+    check("空日志 → 0 花费 0 调用", exports.summarizeUsage([], dayStartMs).cost === 0);
 
     // —— 设置面板：仪表可点，面板改的是同一份选项 ——
     const hudEl = layer.querySelector(".eva-hud");
@@ -373,8 +449,9 @@ window.__ModuleLoader__ = {
         r3.querySelector(".eva-tag--balance b").textContent);
       check("余额就绪后副文案为「残高」",
         r3.querySelector(".eva-tag--balance small").textContent === "残高");
-      check("今日已用按约定留空（显示 —）",
-        r3.querySelector(".eva-tag--today b").textContent === "—");
+      check("宿主没回传用量记录时，今日已用显示 ¥0.00（而不是 —）",
+        r3.querySelector(".eva-tag--today b").textContent === "¥0.00",
+        r3.querySelector(".eva-tag--today b").textContent);
       tags.click();
       check("再点一次翻回正面", tags.dataset.face === "front");
       for (const e of c3.state.effects) e.dispose();
@@ -415,6 +492,44 @@ window.__ModuleLoader__ = {
           r6.querySelector(".eva-tag--balance small").textContent === "网络失败",
         r6.querySelector(".eva-tag--balance b").textContent + "/" + r6.querySelector(".eva-tag--balance small").textContent);
       for (const e of c6.state.effects) e.dispose();
+      globalThis.fetch = realFetch;
+    }
+    {
+      // 今日已用：宿主回传原始 token 记录，客户端按价目表本地计价。
+      // 1M 输出 token，无论当时是高峰还是空闲，都至少 4 元。
+      stubFetch(async () => ({
+        status: 200,
+        json: async () => ({
+          ok: true, currency: "CNY", balance: 12.34,
+          usage: [{ time: Date.now(), turn: 1, step: 1, usage: { outputTokens: 1000000 }, model: "deepseek-flash" }],
+        }),
+      }));
+      const c7 = makeCtx();
+      exports.apply(c7);
+      const r7 = document.body.querySelector(".eva-magi-layer");
+      r7.querySelector(".eva-tags").click();
+      await settle(); await settle(); await settle();
+      const todayText = r7.querySelector(".eva-tag--today b").textContent;
+      check("翻面 → 用宿主回传的 token 记录本地计价并显示", /^¥\d+\.\d{2}$/.test(todayText), todayText);
+      check("1M 输出至少 ¥4（空闲 4 / 高峰 8）", Number(todayText.replace("¥", "")) >= 4, todayText);
+      check("今日已用的副文案是「今日」", r7.querySelector(".eva-tag--today small").textContent === "今日");
+      check("今日已用带 token 与调用次数的说明", /1,000,000 token/.test(r7.querySelector(".eva-tag--today").title),
+        r7.querySelector(".eva-tag--today").title);
+      for (const e of c7.state.effects) e.dispose();
+    }
+
+    {
+      // 没有会话服务时不能把整块搞坏，只显示 —
+      stubFetch(async () => ({ status: 200, json: async () => ({ ok: true, currency: "CNY", balance: 1 }) }));
+      const c8 = makeCtx();
+      exports.apply(c8);
+      const r8 = document.body.querySelector(".eva-magi-layer");
+      r8.querySelector(".eva-tags").click();
+      await settle(); await settle();
+      check("响应里没有 usage 字段时显示 ¥0.00，其余照常",
+        r8.querySelector(".eva-tag--today b").textContent === "¥0.00" && Boolean(r8.querySelector(".eva-hud")),
+        r8.querySelector(".eva-tag--today b").textContent);
+      for (const e of c8.state.effects) e.dispose();
       globalThis.fetch = realFetch;
     }
   } catch (error) {
