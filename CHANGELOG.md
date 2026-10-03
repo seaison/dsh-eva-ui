@@ -2,6 +2,38 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.11.0] —— 未发布
+
+### 新增
+
+- **右上角 TPS / 解码速度波形面板**（MAGI-1 正下方），与下方仪表盘**共用同一条
+  右边缘（实测都是 1582）、同宽**，并跟随它的尺寸（`hudScale`）与「仪表」开关。
+  面板内容：闪烁状态点 + 「波形 / TPS · DECODE」+ 当前值 + 网格示波区 + 折线 +
+  PEAK / AVG。`pointer-events:none`，不会挡到应用。
+
+  **数据来源与算法**：DSH 的 `sessionStats` 投影（界面上那个「257 tok/s」就是它算的：
+  `decodeTokens / (decodeMs / 1000)`）。但那是**会话累计均值**，直接画出来几乎是条
+  直线 —— 所以改成每 400ms 采样投影的原始分量、按间隔求**增量**，得到该区间内的
+  瞬时解码速度，44 个采样点滚动成波形。纵轴自适应、保底 60 tok/s（空闲时不把噪声
+  放大成满屏）。面板 `title` 里写着 `decodeTokens / decodeMs / 瞬时值`，便于排查。
+
+  会话 id 取自会话区域的 `data-conversation-session` 属性；`sessions` 服务同样用
+  子作用域 `ctx.inject(["sessions"], ...)` 可选注入 —— 服务缺失时皮肤照常工作，
+  只是波形没有数据。
+
+### 踩到的两个坑（都写进注释了）
+
+1. **CSS 插错了位置**：插入锚点用了 `.eva-tags{`，结果匹配到
+   `.eva-corner-stack[data-fit="compact"] .eva-tags{display:none}` 里的那一处 ——
+   整段 TPS 样式被塞进了那条规则，变成只在 compact 档位生效（平时完全没样式，
+   面板铺满整个视口宽）。教训：CSS 锚点要选**唯一且带上下文**的串。
+2. **定位父级不同**：TPS 面板原本写在顶栏标记里，它的定位父级是顶栏容器，
+   与下方仪表盘（直接挂在 layer 上）不是同一个 —— `right:18px` 算出来差 6px。
+   改成把它 `appendChild` 到 layer 下即对齐。另外补了 `box-sizing:border-box`，
+   否则 1px 边框还会再差 2px。
+
+断言：宿主侧 46 项 + 浏览器侧 121 项。
+
 ## [0.10.1] —— 未发布
 
 ### 变更

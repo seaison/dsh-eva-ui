@@ -275,6 +275,37 @@ window.__ModuleLoader__ = {
       const min = parseFloat(st.style.minWidth);
       return Number.isFinite(min) && min > 60 && min < 400;
     })(), layer.querySelector(".eva-corner-stack").style.minWidth);
+    // —— 右上角 TPS 波形面板 ——
+    check("TPS 面板存在且结构完整（头/波形/页脚 + 折线）", (() => {
+      const panel = layer.querySelector(".eva-tps");
+      if (!panel) return false;
+      return Boolean(panel.querySelector(".eva-tps-head")) &&
+        Boolean(panel.querySelector("polyline.eva-tps-line")) &&
+        Boolean(panel.querySelector(".eva-tps-foot")) &&
+        Boolean(panel.querySelector(".eva-tps-now"));
+    })());
+    check("TPS 面板与下方仪表盘同宽（都用锁定宽度）", (() => {
+      const stack = layer.querySelector(".eva-corner-stack").style.minWidth;
+      const tps = root.style.getPropertyValue("--eva-tps-width").trim();
+      return stack !== "" && tps === stack;
+    })(), `stack=${layer.querySelector(".eva-corner-stack").style.minWidth} tps=${root.style.getPropertyValue("--eva-tps-width")}`);
+    check("TPS 面板跟随缩放（用同一个 --eva-hud-scale）", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return /\.eva-tps\s*\{[^}]*scale\(var\(--eva-hud-scale/.test(all);
+    })());
+    check("TPS 面板受「仪表」开关控制（hud off 时隐藏）", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return /data-eva-hud="off"[^{]*\.eva-tps\s*\{[^}]*display:\s*none/.test(all);
+    })());
+    check("TPS 折线初始有 44 个点（画得出波形）", (() => {
+      const pts = layer.querySelector(".eva-tps-line").getAttribute("points") || "";
+      return pts.trim().split(/\s+/).length === 44;
+    })(), (layer.querySelector(".eva-tps-line").getAttribute("points") || "").trim().split(/\s+/).length + " 点");
+
     check("推算标记用样式而不是加字（加字会撑宽整栈）", (() => {
       const all = [...document.styleSheets].flatMap((sh) => {
         try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
