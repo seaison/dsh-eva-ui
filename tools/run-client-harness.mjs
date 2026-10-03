@@ -50,7 +50,10 @@ try {
 		[
 			"--headless=new",
 			"--disable-gpu",
-			"--virtual-time-budget=4000",
+			// 25000：测试台里有一条「8 秒后自动翻回」的用例，预算小于它页面会被提前 dump，
+			// 读到的还是 not-run（实测踩过：4000 时整跑失败）。虚拟时间下等待是瞬时的，
+			// 所以给大预算不会拖慢正常跑。
+			"--virtual-time-budget=25000",
 			"--dump-dom",
 			"file://" + harness,
 		],
