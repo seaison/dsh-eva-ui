@@ -15,9 +15,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # v5 起这些 action 自带 Node 24 运行时；v4 会触发
+      # 「Node.js 20 is deprecated」告警（runner 会把它们强制跑到 Node 24 上）。
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 

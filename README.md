@@ -1,5 +1,7 @@
 # dsh-eva-magi-theme
 
+[![CI](https://github.com/seaison/dsh-eva-ui/actions/workflows/ci.yml/badge.svg)](https://github.com/seaison/dsh-eva-ui/actions/workflows/ci.yml)
+
 把 **NERV 中央教条区**的界面语言装进 DSH Web GUI 的皮肤插件。
 
 暗色是本体（MAGI / 中央教条区终端），浅色是配套的「EVA 技术资料」纸质版。
