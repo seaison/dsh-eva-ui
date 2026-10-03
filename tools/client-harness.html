@@ -229,6 +229,29 @@ window.__ModuleLoader__ = {
     const slotRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
     }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    // —— 访问模式（权限）选择器：EVA「内部/外部」面板语言 ——
+    const permRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.permission"));
+    check("权限选择器有专门样式，且只用官方 data-slot 钩子（不碰 Vg9r4q 这类哈希类名）",
+      permRules.length >= 2 && permRules.every((r) => !/Vg9r4q/.test(r.selectorText)),
+      `${permRules.length} 条规则`);
+    check("权限选择器不改尺寸（不碰宽高/内边距/字号/display）", (() => {
+      const text = permRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      return !/(^|[;{ ])(width|height|min-width|min-height|padding|font-size|display|flex)\s*:/.test(text);
+    })());
+    check("权限选择器 = 黑底 + 硬边内描边 + 左缘危险条纹 + 亮黄字", (() => {
+      const text = permRules.map((r) => r.cssText).join(" ");
+      return /repeating-linear-gradient/.test(text) &&          // 危险条纹
+        /inset/.test(text) &&                                    // 边框用 inset（不占布局）
+        /(#ffe600|255, 230, 0)/i.test(text) &&                   // 亮黄
+        /(#ff2d2d|255, 45, 45)/i.test(text) &&                   // 危险红
+        !/var\(--eva-/.test(text);                               // 层外元素不能用层内变量
+    })(), (() => {
+      const text = permRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      return text.slice(0, 150);
+    })());
+
     check("选择器有专门样式，且只用官方 data-slot 钩子（不碰哈希类名）",
       slotRules.length >= 3 && slotRules.every((r) => !/VYXhfG|uWtHQG/.test(r.selectorText)),
       `${slotRules.length} 条规则`);
