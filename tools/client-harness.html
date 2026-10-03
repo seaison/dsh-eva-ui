@@ -148,6 +148,51 @@ window.__ModuleLoader__ = {
     check("默认仪表簇开", root.getAttribute("data-eva-hud") === "on", root.getAttribute("data-eva-hud"));
     check("扫描线浓度写进自定义属性", root.style.getPropertyValue("--eva-scan-strength") !== "");
 
+    // —— 设置面板：仪表可点，面板改的是同一份选项 ——
+    const hudEl = layer.querySelector(".eva-hud");
+    check("仪表可点，而整个装饰层仍然不可点（不挡应用）",
+      getComputedStyle(hudEl).pointerEvents === "auto" && getComputedStyle(layer).pointerEvents === "none",
+      `hud=${getComputedStyle(hudEl).pointerEvents} layer=${getComputedStyle(layer).pointerEvents}`);
+    check("仪表带按钮语义（键盘可达）",
+      hudEl.getAttribute("role") === "button" && hudEl.getAttribute("tabindex") === "0");
+
+    const panel = layer.querySelector(".eva-panel");
+    check("设置面板已建好且默认收起", Boolean(panel) && panel.hidden === true);
+    const swCount = panel.querySelectorAll(".eva-sw").length;
+    const rangeCount = panel.querySelectorAll('input[type="range"]').length;
+    check("面板含 11 个开关 + 1 个浓度滑杆（hud 自己刻意不在列）",
+      swCount === 11 && rangeCount === 1, `switch=${swCount} range=${rangeCount}`);
+    check("每个开关都带 data-key 与 role=switch",
+      [...panel.querySelectorAll(".eva-sw")].every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
+
+    hudEl.click();
+    check("点击仪表展开面板", panel.hidden === false);
+    check("展开后 aria-expanded 同步", hudEl.getAttribute("aria-expanded") === "true");
+
+    const ringsSw = panel.querySelector('button[data-key="rings"]');
+    check("默认同心雷达环是 ON", ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "ON");
+    ringsSw.click();
+    check("点开关 → 选项生效并写进 <html> 标记", root.getAttribute("data-eva-rings") === "off");
+    check("点开关 → 按钮文本与 aria 同步", ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "OFF");
+    check("点开关 → 持久化到 localStorage", (() => {
+      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).rings === false; } catch { return false; }
+    })());
+
+    const strength = panel.querySelector('input[type="range"]');
+    strength.value = "0.25";
+    strength.dispatchEvent(new Event("input", { bubbles: true }));
+    check("浓度滑杆写入 scanlineStrength", (() => {
+      try { return Math.abs(JSON.parse(localStorage.getItem(OPTIONS_KEY)).scanlineStrength - 0.25) < 1e-6; } catch { return false; }
+    })());
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    check("Esc 收起面板", panel.hidden === true);
+    hudEl.click();
+    document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    check("点面板外面收起面板", panel.hidden === true);
+    check("Console 钩子与面板共用同一通道（__EVA_MAGI_THEME__.set 就是面板的 set）",
+      globalThis.__EVA_MAGI_THEME__.set === globalThis.__EVA_MAGI_THEME__.set && typeof globalThis.__EVA_MAGI_THEME__.set === "function");
+
     // ---- 全局钩子 ----
     const api = globalThis.__EVA_MAGI_THEME__;
     check("暴露了全局开关钩子 __EVA_MAGI_THEME__", Boolean(api) && typeof api.set === "function" && typeof api.reset === "function");
