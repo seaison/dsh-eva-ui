@@ -160,3 +160,22 @@ data-sidebar-right-panel / data-rightbar-col / data-dockkit-surface / data-slot
 代价是放弃了一批最「EVA」的形状语言（斜切角按钮、切角面板、L 型角标贴在面板上）。
 补偿办法是把它们放进**完全由自己控制的覆盖层**：框架、角标、刻度尺、危险条纹、
 标签块全是插件自建的 DOM，想怎么斜切都行，而且永远不会碰到应用的结构。
+
+## 教训：覆盖层里的 CSS 变量，层外元素取不到
+
+本项目的颜色变量（`--eva-accent` / `--eva-hair` / `--eva-solar` …）都定义在
+`.eva-magi-layer` 上，**只对层内的装饰生效**。
+
+一旦要装饰**应用自己的元素**（它们不在这层里），`var(--eva-accent)` 会解析失败，
+而且失败方式很隐蔽：
+
+- `color: var(--eva-accent)` → 整条声明被丢弃，颜色静默不变；
+- `box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--eva-accent) 55%, transparent)`
+  → `color-mix()` 拿到非法颜色，**整条 box-shadow 被丢弃**（实测读到 `"none"`）。
+
+**规则：装饰层外元素时，一律用主题令牌 `--dsw-alias-*`**（主题服务把它们内联在
+`<body>` 上，层内层外都能用）。
+
+这条已经踩过两次：① 开机序列的 NERV 标志（挂在 `body` 上）；② 模型/推理等级
+选择器（在输入框里）。测试台里加了两条守卫断言：选择器样式块**不得出现
+`var(--eva-*)`**，并且**不得触碰 width/height/padding/font-size/display**。

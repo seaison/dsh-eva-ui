@@ -225,6 +225,30 @@ window.__ModuleLoader__ = {
       return `宽 ${[...new Set(sws.map((b) => Math.round(b.getBoundingClientRect().width)))]} 高 ${[...new Set(sws.map((b) => Math.round(b.getBoundingClientRect().height)))]}`;
     })());
 
+    // —— 模型 / 推理等级选择器（官方 data-slot 钩子，元素在覆盖层之外）——
+    const slotRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    check("选择器有专门样式，且只用官方 data-slot 钩子（不碰哈希类名）",
+      slotRules.length >= 3 && slotRules.every((r) => !/VYXhfG|uWtHQG/.test(r.selectorText)),
+      `${slotRules.length} 条规则`);
+    check("这些规则只用主题令牌 —— 元素在覆盖层之外，var(--eva-*) 取不到（踩过的坑）", (() => {
+      const text = slotRules.map((r) => r.cssText).join(" ");
+      return !/var\(--eva-/.test(text) && /var\(--dsw-alias-/.test(text);
+    })(), (() => {
+      const text = slotRules.map((r) => r.cssText).join(" ");
+      const bad = (text.match(/var\(--eva-[a-z-]+\)/g) || []).slice(0, 3);
+      return bad.length ? "误用:" + bad.join(",") : "仅主题令牌";
+    })());
+    check("这些规则不改尺寸（不碰宽高/内边距/字号/display）", (() => {
+      const text = slotRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      return !/(^|[;{ ])(width|height|min-width|min-height|padding|font-size|display|flex)\s*:/.test(text);
+    })(), (() => {
+      const text = slotRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      const bad = text.match(/(^|[;{ ])(width|height|min-width|min-height|padding|font-size|display|flex)\s*:/g);
+      return bad ? "含:" + bad.join(",") : "未触碰尺寸属性";
+    })());
+
     check("面板含 11 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
       swCount === 11 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch",
