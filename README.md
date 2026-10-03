@@ -12,7 +12,7 @@
 
 > **真实截图**：DSH Web GUI 加载本插件后的样子（在一个独立 profile 里跑起来的实例）。
 > 右下角是仪表簇（竖排「中央教条区」+ 实时读数），四周是内嵌框架、四角 L 标、
-> 刻度尺、危险条纹与反白标签块；中央大片空白上是极淡的同心雷达环。
+> 刻度尺、危险条纹与反白标签块；中央大片空白上是极淡的太阳系俯视图。
 
 每次会话首次加载会放一段开机序列（约 2.6 秒后自行淡出，`pointer-events:none` 所以从不挡操作）：
 
@@ -41,7 +41,7 @@
 | **仪表簇**（右下角） | **可缩放**（默认 1.5，范围 0.7–2.3，滑杆或 Cmd/Ctrl + 滚轮；缩放只作用于仪表，设置面板保持原尺寸）； 竖排明朝体「中央教条区」+ 橙底反白标签块（`会話記録 / TRANSCRIPT`、`警戒態勢 通常`）+ 四路**真实**读数 + 方块流动画。读数取真实值：时刻、视口尺寸、会话正文字号、当前色板 —— 不做假遥测 |
 | **开机序列** | 每次会话首次加载放一段「NERV — MAGI SYSTEM / LINK ESTABLISHED」接续画面（明朝体大字 + 进度方块），约 2.6 秒后淡出 |
 | **形状层** | 圆角全部压到 0 —— EVA 的世界里没有圆角（`--dsw-radius-panel` 默认 28px，这是最激进的一刀，可以关） |
-| **质感层** | 暗角 + 同心雷达环 + 可选 48px 测绘网格。**CRT 扫描线与场同步带默认关闭**（实测后按用户要求先后去掉；`set("scanlines", true)` / `set("beam", true)` 可随时开回） |
+| **质感层** | 暗角 + 太阳系俯视图 + 可选 48px 测绘网格。**CRT 扫描线与场同步带默认关闭**（实测后按用户要求先后去掉；`set("scanlines", true)` / `set("beam", true)` 可随时开回） |
 | **排版层** | 标题走**明朝体**：靠 `font-family` 的逐字符回退，拉丁仍吃系统无衬线，只有汉字落到 Hiragino Mincho ProN；全局等宽数字（`tabular-nums`），读数不会随内容抖动 |
 
 ### 元素装饰（直接作用于应用组件）
@@ -174,7 +174,7 @@ __EVA_MAGI_THEME__.set("chrome", false)          // 关掉框架/角标/危险�
 __EVA_MAGI_THEME__.set("hud", false)             // 关掉右下角仪表簇
 __EVA_MAGI_THEME__.set("boot", false)            // 关掉开机序列
 __EVA_MAGI_THEME__.set("beam", false)            // 关掉走行的场同步带
-__EVA_MAGI_THEME__.set("rings", false)           // 关掉同心雷达环
+__EVA_MAGI_THEME__.set("rings", false)           // 关掉太阳系俯视图
 __EVA_MAGI_THEME__.set("scanlines", true)        // 打开 CRT 扫描线（默认关）
 __EVA_MAGI_THEME__.set("scanlineStrength", 0.25) // 扫描线浓度 0~1
 __EVA_MAGI_THEME__.set("hardEdges", false)       // 恢复 DSH 原来的圆角
@@ -195,7 +195,7 @@ __EVA_MAGI_THEME__.reset()                       // 全部回到默认值
 | `hud` | `true` | 右下角仪表簇（竖排汉字 + 真实读数 + 方块流） |
 | `boot` | `true` | 开机序列，每个浏览器会话只放一次 |
 | `beam` | `false` | 走行的场同步带（滚动的白线），9 秒一遍；默认关 |
-| `rings` | `true` | 同心雷达环底纹 |
+| `rings` | `true` | **太阳系俯视图**：中心太阳 + 6 条轨道 + 轨道上的行星（含土星环、地球的月球）。俯视视角的简单线稿，随主题色、8% 不透明度作水印 |
 | `scanlines` | `false` | CRT 扫描线，3px 周期（默认关） |
 | `scanlineStrength` | `0.5` | 扫描线不透明度；浅色模式下自动再减半 |
 | `vignette` | `true` | 四角压暗 |

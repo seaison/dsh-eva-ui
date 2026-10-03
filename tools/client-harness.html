@@ -209,7 +209,7 @@ window.__ModuleLoader__ = {
     check("展开后 aria-expanded 同步", hudEl.getAttribute("aria-expanded") === "true");
 
     const ringsSw = panel.querySelector('button[data-key="rings"]');
-    check("默认同心雷达环是 ON", ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "ON");
+    check("默认太阳系俯视图是 ON", ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "ON");
     ringsSw.click();
     check("点开关 → 选项生效并写进 <html> 标记", root.getAttribute("data-eva-rings") === "off");
     check("点开关 → 按钮文本与 aria 同步", ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "OFF");
