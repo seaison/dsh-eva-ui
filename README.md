@@ -6,11 +6,22 @@
 皮肤的调色与排版全部来自一份独立的设计稿 —— 一个叫 `nerv-hud` 的可交互 HUD 原型，
 本插件是那套语言在真实产品界面里的落地版本。
 
+![DSH GUI 上的 EVA/MAGI 皮肤](docs/screenshot-dark.png)
+
+> **真实截图**：DSH Web GUI 加载本插件后的样子（在一个独立 profile 里跑起来的实例）。
+> 右下角是仪表簇（竖排「中央教条区」+ 实时读数），四周是内嵌框架、四角 L 标、
+> 刻度尺、危险条纹与反白标签块；中央大片空白上是极淡的同心雷达环。
+
+每次会话首次加载会放一段开机序列（约 2.6 秒后自行淡出，`pointer-events:none` 所以从不挡操作）：
+
+![开机序列](docs/screenshot-boot.png)
+
+设计语言来自一份独立原型（不是 GUI 截图）：
+
 ![设计语言来源](docs/design-reference.png)
 
-> 上图是**设计稿**（独立 HUD 原型 `nerv-hud.html` 的渲染），**不是 DSH GUI 的截图**。
-> 皮肤的令牌级效果可以直接核对：[`docs/palette.html`](docs/palette.html) 色卡与
-> [`docs/TOKENS.md`](docs/TOKENS.md) 对照表都由代码生成。
+> 皮肤的外观可直接核对的还有：[`docs/palette.html`](docs/palette.html) 色卡与
+> [`docs/TOKENS.md`](docs/TOKENS.md) 对照表，都由代码生成。
 
 ---
 
@@ -19,9 +30,26 @@
 | 层 | 改了什么 |
 | --- | --- |
 | **令牌层**（107 个 `--dsw-alias-*`） | 全部别名令牌换成 EVA 配色：底色 `#08090a`、主色 `#ff6a00`、数据绿 `#7cff4f`、警戒红 `#ff1e1e`、正文暖白 `#e8e4dc`（刻意不用纯白）。边框变成橙色发丝线，滚动条像仪表刻度，选中色是主色 |
+| **结构装饰层** | 内嵌发丝框架 + 四角 L 标 + 左右刻度尺（带游标扫描高光）+ 底部危险条纹 + 顶边压力线与刻度 + 四角规格编号（`0471 / GEHIRN`、`MAGI-1 / 三賢人`）+ CRT 三枪色散 |
+| **仪表簇**（右下角） | 竖排明朝体「中央教条区」+ 橙底反白标签块（`会話記録 / TRANSCRIPT`、`警戒態勢 通常`）+ 四路**真实**读数 + 方块流动画。读数取真实值：时刻、视口尺寸、会话正文字号、当前色板 —— 不做假遥测 |
+| **开机序列** | 每次会话首次加载放一段「NERV — MAGI SYSTEM / LINK ESTABLISHED」接续画面（明朝体大字 + 进度方块），约 2.6 秒后淡出 |
 | **形状层** | 圆角全部压到 0 —— EVA 的世界里没有圆角（`--dsw-radius-panel` 默认 28px，这是最激进的一刀，可以关） |
-| **质感层** | CRT 扫描线 + 暗角 + 顶边主色压力线（`nerv-hud` 里那条 2px 渐变）；可选 48px 测绘网格 |
+| **质感层** | CRT 扫描线 + 暗角 + 同心雷达环 + 走行的场同步带 + 可选 48px 测绘网格 |
 | **排版层** | 标题走**明朝体**：靠 `font-family` 的逐字符回退，拉丁仍吃系统无衬线，只有汉字落到 Hiragino Mincho ProN；全局等宽数字（`tabular-nums`），读数不会随内容抖动 |
+
+### 元素装饰（直接作用于应用组件）
+
+挂钩一律用应用自己的 `data-*` 语义属性（`data-conversation-header`、`data-composer-card`、
+`data-sidebar-right-panel`、`data-dockkit-surface` …），**不用 CSS Modules 的哈希类名**——
+那些每次构建都会变。并且只用不会改变布局、不会覆盖应用自身样式的属性
+（`box-shadow` / `outline` / `border-color` / `letter-spacing`），刻意避开
+`::before`/`::after`（可能撞掉应用自己的伪元素）与 `background-image`：
+
+- 顶栏：`inset 0 -1px` 画分隔线（改 `border-width` 会挤动内容）
+- 输入卡片：外圈橙色发丝线，聚焦时整圈点亮 + 外发光
+- 会话列表选中项：左侧 2px 橙色标志条
+- 主区域：一层极淡的橙色环境光
+- 键帽、代码块、`hr`（变危险条纹）、滚动条、浮层（橙色外环）、焦点环
 
 ---
 
@@ -75,25 +103,35 @@ localStorage.removeItem("dsh-eva-magi-theme:options")
 所以开关做成一个全局钩子 —— 打开开发者工具（设置里已开启），在 Console 里直接调：
 
 ```js
-__EVA_MAGI_THEME__.set("scanlines", false)        // 关掉 CRT 扫描线
-__EVA_MAGI_THEME__.set("scanlineStrength", 0.25)  // 扫描线浓度 0~1
-__EVA_MAGI_THEME__.set("hardEdges", false)        // 恢复 DSH 原来的圆角
-__EVA_MAGI_THEME__.set("grid", true)              // 打开测绘网格背景
-__EVA_MAGI_THEME__.set("topLine", false)          // 关掉顶边主色压力线
-__EVA_MAGI_THEME__.set("minchoHeadings", false)   // 标题回到哥特体
-__EVA_MAGI_THEME__.set("vignette", false)         // 关掉暗角
-__EVA_MAGI_THEME__.reset()                        // 全部回到默认值
+__EVA_MAGI_THEME__.set("chrome", false)          // 关掉框架/角标/危险条纹/刻度尺/编号
+__EVA_MAGI_THEME__.set("hud", false)             // 关掉右下角仪表簇
+__EVA_MAGI_THEME__.set("boot", false)            // 关掉开机序列
+__EVA_MAGI_THEME__.set("beam", false)            // 关掉走行的场同步带
+__EVA_MAGI_THEME__.set("rings", false)           // 关掉同心雷达环
+__EVA_MAGI_THEME__.set("scanlines", false)       // 关掉 CRT 扫描线
+__EVA_MAGI_THEME__.set("scanlineStrength", 0.25) // 扫描线浓度 0~1
+__EVA_MAGI_THEME__.set("hardEdges", false)       // 恢复 DSH 原来的圆角
+__EVA_MAGI_THEME__.set("grid", true)             // 打开测绘网格背景
+__EVA_MAGI_THEME__.set("topLine", false)         // 关掉顶边主色压力线
+__EVA_MAGI_THEME__.set("minchoHeadings", false)  // 标题回到哥特体
+__EVA_MAGI_THEME__.set("vignette", false)        // 关掉暗角
+__EVA_MAGI_THEME__.reset()                       // 全部回到默认值
 ```
 
 选择存在 `localStorage`（键 `dsh-eva-magi-theme:options`），刷新后保留。
 
 | 选项 | 默认 | 说明 |
 | --- | --- | --- |
+| `chrome` | `true` | 结构装饰：内嵌框架 + 四角 L 标 + 刻度尺 + 危险条纹 + 反白标签块 + 规格编号 + 色散 |
+| `hud` | `true` | 右下角仪表簇（竖排汉字 + 真实读数 + 方块流） |
+| `boot` | `true` | 开机序列，每个浏览器会话只放一次 |
+| `beam` | `true` | 走行的场同步带，9 秒一遍 |
+| `rings` | `true` | 同心雷达环底纹 |
 | `scanlines` | `true` | CRT 扫描线，3px 周期 |
 | `scanlineStrength` | `0.5` | 扫描线不透明度；浅色模式下自动再减半 |
 | `vignette` | `true` | 四角压暗 |
 | `grid` | `false` | 48px 测绘网格 |
-| `topLine` | `true` | 顶边主色渐变线 |
+| `topLine` | `true` | 顶边主色渐变线 + 刻度 |
 | `hardEdges` | `true` | 圆角归零 |
 | `tabularNumbers` | `true` | 等宽数字 |
 | `minchoHeadings` | `true` | `h1~h3` 的汉字走明朝体 |
@@ -154,9 +192,10 @@ ctx.theme.overrideTokens("dsh-eva-magi-theme", {
    不喜欢就 `set("hardEdges", false)`。
 4. **覆盖层盖在所有内容之上**（`z-index` 取最大值，但 `pointer-events:none`）。
    这是刻意的：弹窗和提示也应该是 CRT 里的一部分。
-5. **仓库里没有 GUI 截图。** 本机 DSH 桌面版的 HTTP 服务拒绝非应用客户端，也拿不到
-   屏幕录制权限，所以无法自动截图。可核对的替代物是色卡页与令牌表（都由代码生成），
-   以及 `npm run test:client` 那 40 项行为断言 —— 外观需要你目测，行为不再是黑箱。
+5. **装饰层全部挤在右下角。** 这是刻意的：第一版把两个标签分别放在右上与左下，
+   实测当场盖住了应用的侧栏折叠按钮和「设置」。装饰绝不能压住控件，而这块界面里
+   只有右下角（正文列居中、左栏固定、右栏可选）是稳定空着的。所以标签、仪表、
+   说明全都叠在同一个角，由 flex 保证互不重叠。
 
 ---
 
@@ -208,6 +247,23 @@ npm run docs             # 重新生成 docs/TOKENS.md 与 docs/palette.html
 改 `lib/client.js` 里的 `PALETTE` 表 → 跑 `npm run docs` → 用浏览器打开
 `docs/palette.html`，就能在无需装卸皮肤的情况下看到浅色/深色两侧的结果。
 
+### 怎么在真实 GUI 里验收
+
+外观只能靠眼睛，所以迭代时需要「装上去 → 截图 → 看图改」。两个工具：
+
+```bash
+# 1) 用独立 profile 起一个测试实例（不要动桌面版正在用的 profile）
+dsh evaskin --from-default-profile web          # 首次：从 web 模板建 profile
+dsh plugin --profile evaskin add link:$PWD      # 把本目录以链接方式装进去
+node /Applications/DSH\ Desktop.app/Contents/Resources/app/node_modules/@deepseek-ai/dsh/lib/bin.js \
+  evaskin --port 4399 --no-open                 # 启动，日志里会给带 token 的 URL
+
+# 2) 截图（用 CDP 真实等待；chrome --screenshot 会因为 WebSocket 永不静默而挂死）
+node tools/shoot.mjs "http://127.0.0.1:4399/?token=<token>" /tmp/shot.png 12000
+```
+
+链接安装意味着改完代码刷新页面即可，不必重装。
+
 **迭代皮肤本身**需要真实 GUI：改完代码 → 在插件管理器里重新添加本地目录（或刷新页面）。
 `lib/client.js` 是手写的模块加载器外壳，没有构建步骤、没有依赖，改完即生效。
 
@@ -223,9 +279,12 @@ tools/verify-contrast.mjs 颜色关系：WCAG 对比度 + 覆盖前后的浅/深
 tools/gen-tokens-doc.mjs 由代码生成文档
 tools/client-harness.html 浏览器半边测试台（模拟 ModuleLoader 与 ctx）
 tools/run-client-harness.mjs 用无头 Chrome 跑测试台并转成退出码
+tools/shoot.mjs          给真实 GUI 截图（CDP 版，见「怎么在真实 GUI 里验收」）
 docs/DESIGN.md           设计推导：从 nerv-hud 到 --dsw-* 的逐条映射与取舍
 docs/TOKENS.md           令牌对照表（生成物）
 docs/palette.html        令牌色卡（生成物）
+docs/screenshot-*.png    真实 GUI 截图
+docs/design-reference.png 设计稿（独立 HUD 原型）
 .github/workflows/ci.yml 每次推送跑 check + test
 ```
 

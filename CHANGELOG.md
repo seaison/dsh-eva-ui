@@ -2,6 +2,42 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] —— 未发布
+
+「0.1.0 只有令牌与质感，EVA 元素太少」的直接回应。补上一层结构性装饰，
+并把验证方式从「等用户目测」换成「起独立实例 + CDP 截图 + 自动断言」。
+
+### 新增
+
+- **结构装饰层**（`chrome`）：内嵌发丝框架、四角 L 标、左右刻度尺（带游标扫描高光）、
+  底部危险条纹、顶边压力线与刻度、四角规格编号（`0471 / GEHIRN`、`MAGI-1 / 三賢人`）、
+  CRT 三枪色散（红/青各偏移 1px）。
+- **仪表簇**（`hud`）：右下角 NERV 状态盘 —— 竖排明朝体「中央教条区」、橙底反白标签块、
+  四路**真实**读数（时刻 / 视口尺寸 / 会话正文字号 / 当前色板）、16 格方块流动画。
+- **开机序列**（`boot`）：每次会话首次加载放一段「NERV — MAGI SYSTEM / LINK ESTABLISHED」
+  接续画面（明朝体大字 + 进度方块），约 2.6 秒后淡出；`pointer-events:none`，从不挡操作。
+- **同心雷达环**（`rings`）与**走行的场同步带**（`beam`）。
+- **应用元素装饰**：顶栏分隔线、输入卡片橙色外圈（聚焦整圈点亮）、会话列表选中项
+  左侧橙条、主区域环境光、键帽/代码块/`hr`/滚动条/浮层/焦点环。
+- `tools/shoot.mjs`：给真实 GUI 截图。用 CDP 真实等待 + `Page.captureScreenshot`，
+  因为 `chrome --screenshot` 配 `--virtual-time-budget` 在带 WebSocket 的活应用上永不返回。
+- `docs/screenshot-dark.png`、`docs/screenshot-boot.png`：**真实 GUI 截图**，
+  补上 0.1.0「没有截图」的短板。
+
+### 变更
+
+- 装饰层挂钩改用应用自己的 `data-*` 语义属性（`data-conversation-header`、
+  `data-composer-card`、`data-sidebar-right-panel`、`data-dockkit-surface` …），
+  不再依赖 CSS Modules 的哈希类名。
+- 元素装饰只用不改布局、不覆盖应用样式的属性（`box-shadow` / `outline` /
+  `border-color` / `letter-spacing`），刻意避开 `::before`/`::after` 与 `background-image`。
+- 选项从 8 个增加到 13 个；浏览器半边测试从 40 项增加到 55 项断言。
+
+### 修复
+
+- 第一版标签分别放在右上与左下，实测**盖住了应用的侧栏折叠按钮与「设置」**。
+  改为右下角单一纵向叠层，由 flex 保证互不重叠。装饰绝不能压住控件。
+
 ## [0.1.0] —— 未发布
 
 首个版本。

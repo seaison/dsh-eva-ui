@@ -46,7 +46,7 @@ window.__ModuleLoader__ = {
     check("exports.apply 是函数", typeof exports.apply === "function");
     check("exports.inject 只依赖 theme 服务", JSON.stringify(exports.inject) === '["theme"]', JSON.stringify(exports.inject));
     check("PALETTE 导出 107 个令牌", Object.keys(exports.PALETTE).length === 107, String(Object.keys(exports.PALETTE).length));
-    check("DEFAULT_OPTIONS 导出 8 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 8, Object.keys(exports.DEFAULT_OPTIONS).join(","));
+    check("DEFAULT_OPTIONS 导出 13 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 13, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = () => {
@@ -67,14 +67,15 @@ window.__ModuleLoader__ = {
       };
     };
 
-    // 从干净状态开始，否则上一次运行残留的 localStorage 会污染断言
+    // 从干净状态开始，否则上一次运行的残留会污染断言
     try { localStorage.removeItem(OPTIONS_KEY); } catch {}
+    try { sessionStorage.removeItem(PACKAGE + ":booted"); } catch {}
 
     // ================= 实例 1：默认选项 =================
     const ctx = makeCtx();
     exports.apply(ctx);
 
-    check("apply 注册了 3 个 effect（样式表 / 覆盖层 / 令牌层）", ctx.state.effects.length === 3,
+    check("apply 注册了 4 个 effect（样式表 / 装饰层 / 开机序列 / 令牌层）", ctx.state.effects.length === 4,
       ctx.state.effects.map((e) => e.label).join(" | "));
     check("每个 effect 都返回了可回收的 dispose", ctx.state.effects.every((e) => typeof e.dispose === "function"));
 
@@ -101,13 +102,37 @@ window.__ModuleLoader__ = {
     check("含明朝体标题规则（只作用于 h1~h3）", rules.some((t) => t.includes("Hiragino Mincho ProN") && t.includes("h1")));
     check("含等宽数字规则 tabular-nums", rules.some((t) => t.includes("tabular-nums")));
 
-    // —— 覆盖层 ——
+    // —— 装饰层：CRT + 结构框架 + 仪表簇 + 标签 ——
     const layer = document.body.querySelector(".eva-magi-layer");
-    check("CRT 覆盖层已挂到 <body>", Boolean(layer));
-    check("覆盖层含 4 个图层（网格/暗角/扫描线/顶线）", Boolean(layer) && layer.children.length === 4,
-      layer ? String(layer.children.length) : "-");
-    check("覆盖层不拦截指针事件", Boolean(layer) && getComputedStyle(layer).pointerEvents === "none",
+    check("装饰层已挂到 <body>", Boolean(layer));
+    check("装饰层不拦截指针事件（永不挡操作）", Boolean(layer) && getComputedStyle(layer).pointerEvents === "none",
       layer ? getComputedStyle(layer).pointerEvents : "-");
+    const q = (sel) => (layer ? layer.querySelectorAll(sel).length : 0);
+    check("CRT 四层齐全（网格/场同步带/暗角/扫描线）",
+      q(".eva-magi-grid") === 1 && q(".eva-magi-beam") === 1 && q(".eva-magi-vig") === 1 && q(".eva-magi-scan") === 1,
+      `grid=${q(".eva-magi-grid")} beam=${q(".eva-magi-beam")} vig=${q(".eva-magi-vig")} scan=${q(".eva-magi-scan")}`);
+    check("结构框架：内嵌框 + 四个角标", q(".eva-frame") === 1 && q(".eva-corner") === 4, "角标 " + q(".eva-corner"));
+    check("左右刻度尺都在", q(".eva-edge") === 2, String(q(".eva-edge")));
+    check("顶边压力线与底部危险条纹都在", q(".eva-magi-top") === 1 && q(".eva-hazard") === 1);
+    check("反白标签块 2 个（会話記録 / 警戒態勢）", q(".eva-tag") === 2, String(q(".eva-tag")));
+    check("仪表簇含竖排汉字标签 + 方块流 16 格",
+      q(".eva-hud-vlabel") === 1 && q(".eva-blocks i") === 16,
+      `vlabel=${q(".eva-hud-vlabel")} blocks=${q(".eva-blocks i")}`);
+
+    // —— 仪表读数是真实的，不是假遥测 ——
+    const clockText = layer.querySelector(".eva-clock")?.textContent ?? "";
+    check("時刻 是真实时钟（HH:MM:SS.cc）", /^\d{2}:\d{2}:\d{2}\.\d{2}$/.test(clockText), clockText);
+    const viewText = layer.querySelector(".eva-view")?.textContent ?? "";
+    check("表示 取自真实视口尺寸", /^\d+×\d+$/.test(viewText), viewText);
+    const stateText = layer.querySelector(".eva-state")?.textContent ?? "";
+    check("状態 取自真实色板", stateText === "DARK" || stateText === "LIGHT", stateText);
+
+    // —— 开机序列 ——
+    const boot = document.body.querySelector(".eva-boot");
+    check("开机序列已挂载（含明朝体标题与进度方块）",
+      Boolean(boot) && Boolean(boot.querySelector(".jp")) && boot.querySelectorAll(".bar i").length === 14);
+    check("开机序列不拦截指针事件", Boolean(boot) && getComputedStyle(boot).pointerEvents === "none");
+    check("开机序列会话标记已写入", (() => { try { return sessionStorage.getItem(PACKAGE + ":booted") === "1"; } catch { return false; } })());
 
     // —— <html> 上的开关标记 ——
     const root = document.documentElement;
@@ -116,6 +141,8 @@ window.__ModuleLoader__ = {
     check("默认硬边开", root.getAttribute("data-eva-edges") === "hard", root.getAttribute("data-eva-edges"));
     check("默认明朝体标题开", root.getAttribute("data-eva-mincho") === "on", root.getAttribute("data-eva-mincho"));
     check("默认网格关（避免默认就上测绘底纹）", root.getAttribute("data-eva-grid") === "off", root.getAttribute("data-eva-grid"));
+    check("默认结构框架开", root.getAttribute("data-eva-chrome") === "on", root.getAttribute("data-eva-chrome"));
+    check("默认仪表簇开", root.getAttribute("data-eva-hud") === "on", root.getAttribute("data-eva-hud"));
     check("扫描线浓度写进自定义属性", root.style.getPropertyValue("--eva-scan-strength") !== "");
 
     // ---- 全局钩子 ----
@@ -139,7 +166,8 @@ window.__ModuleLoader__ = {
     // ================= 回收 =================
     for (const effect of ctx.state.effects) effect.dispose();
     check("回收后皮肤样式表被移除", !document.head.querySelector('style[data-plugin-css="' + PACKAGE + ':skin"]'));
-    check("回收后覆盖层被移除", !document.body.querySelector(".eva-magi-layer"));
+    check("回收后装饰层被移除", !document.body.querySelector(".eva-magi-layer"));
+    check("回收后开机序列被移除", !document.body.querySelector(".eva-boot"));
     check("回收后根元素开关标记被清干净",
       !root.hasAttribute("data-eva-magi") && !root.hasAttribute("data-eva-scan") && !root.hasAttribute("data-eva-edges"));
     check("回收后令牌层被注销", ctx.state.tokenDisposed === 1, String(ctx.state.tokenDisposed));
@@ -147,10 +175,13 @@ window.__ModuleLoader__ = {
     // ================= 实例 2：选项持久化 =================
     // 上一个实例把 scanlines=false / grid=true / hardEdges=false 写进了 localStorage，
     // 新实例必须在 apply 时就恢复它们 —— 这是「刷新后设置还在」的机制本身。
+    // 同时：开机序列的会话标记已写入，所以第二个实例不该再注册那个 effect。
     const ctx2 = makeCtx();
     exports.apply(ctx2);
     check("新实例从 localStorage 恢复了选项（scanlines 仍为 off）", root.getAttribute("data-eva-scan") === "off");
     check("新实例恢复了 grid 开", root.getAttribute("data-eva-grid") === "on");
+    check("开机序列每会话只放一次（第二个实例不注册它）", ctx2.state.effects.length === 3,
+      String(ctx2.state.effects.length));
     globalThis.__EVA_MAGI_THEME__.reset();
     check("reset() 回到默认值", root.getAttribute("data-eva-scan") === "on" && root.getAttribute("data-eva-grid") === "off");
     for (const effect of ctx2.state.effects) effect.dispose();
