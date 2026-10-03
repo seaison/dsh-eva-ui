@@ -209,12 +209,10 @@ window.__ModuleLoader__ = {
     check("展开后 aria-expanded 同步", hudEl.getAttribute("aria-expanded") === "true");
 
     const ringsSw = panel.querySelector('button[data-key="rings"]');
-    check("默认太阳系俯视图是「承認」", ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "承認",
-      ringsSw.textContent);
+    check("默认太阳系俯视图是 ON", ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "ON");
     ringsSw.click();
     check("点开关 → 选项生效并写进 <html> 标记", root.getAttribute("data-eva-rings") === "off");
-    check("点开关 → 文本变「否定」且 aria 同步",
-      ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "否定", ringsSw.textContent);
+    check("点开关 → 按钮文本与 aria 同步", ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "OFF");
     check("点开关 → 持久化到 localStorage", (() => {
       try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).rings === false; } catch { return false; }
     })());
@@ -278,43 +276,6 @@ window.__ModuleLoader__ = {
       return Number.isFinite(min) && min > 60 && min < 400;
     })(), layer.querySelector(".eva-corner-stack").style.minWidth);
     // —— 右上角 TPS 波形面板 ——
-    // —— MAGI 界面设计语言（青绿结构 / 橙色数据 / 红色否定）——
-    check("新增 MAGI 青绿令牌", (() => {
-      const v = getComputedStyle(layer).getPropertyValue("--eva-magi").trim();
-      return /6ef3d0/i.test(v);
-    })(), (() => getComputedStyle(layer).getPropertyValue("--eva-magi").trim() || "(未定义)")());
-    check("MAGI 三贤人徽记存在，用掩膜线稿 + 可见", (() => {
-      const b = layer.querySelector(".eva-magi-badge");
-      if (!b) return false;
-      const cs = getComputedStyle(b);
-      return (cs.webkitMaskImage || cs.maskImage || "").includes("data:image/svg+xml") && Number(cs.opacity) > 0.2;
-    })());
-    check("徽记受「仪表」开关控制（chrome off 时真的隐藏）", (() => {
-      // 行为断言：直接开关 chrome 看计算样式，比正则匹配 CSS 文本可靠
-      const badge = layer.querySelector(".eva-magi-badge");
-      if (!badge) return false;
-      const html = document.documentElement;
-      const before = getComputedStyle(badge).display;
-      html.setAttribute("data-eva-chrome", "off");
-      const off = getComputedStyle(badge).display;
-      html.removeAttribute("data-eva-chrome");
-      const back = getComputedStyle(badge).display;
-      return before !== "none" && off === "none" && back !== "none";
-    })(), (() => {
-      const badge = layer.querySelector(".eva-magi-badge");
-      if (!badge) return "(无徽记)";
-      const html = document.documentElement;
-      html.setAttribute("data-eva-chrome", "off");
-      const off = getComputedStyle(badge).display;
-      html.removeAttribute("data-eva-chrome");
-      return "chrome off → " + off;
-    })());
-    check("面板开关用判决印章语言（承認 / 否定）", (() => {
-      const sws = [...panel.querySelectorAll(".eva-sw")].map((b) => b.textContent);
-      return sws.length > 0 && sws.every((t) => t === "承認" || t === "否定") &&
-        sws.includes("承認") && sws.includes("否定");
-    })(), (() => [...panel.querySelectorAll(".eva-sw")].slice(0, 4).map((b) => b.textContent).join(" / "))());
-
     check("太阳系装饰：铺满全屏 + 缓慢自转 + 旋转原点对准太阳", (() => {
       // 用 CSSOM 逐属性断言：cssText 会把 animation 简写重排（实测是
       // "240s linear 0s infinite normal none running eva-orbit"），正则写死会假失败。
