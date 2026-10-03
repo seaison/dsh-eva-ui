@@ -229,6 +229,28 @@ window.__ModuleLoader__ = {
     const slotRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
     }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    // —— 左侧边栏：与输入框同一套语言 ——
+    const sideRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText && /sidebar/i.test(r.selectorText));
+    check("侧边栏样式主要走官方 data-slot 钩子", (() => {
+      const bySlot = sideRules.filter((r) => r.selectorText.includes('[data-slot="sidebar'));
+      return bySlot.length >= 5 && sideRules.some((r) => r.selectorText.includes('sidebar.brand.name'));
+    })(), (() => sideRules.length + " 条规则，其中 data-slot 钩子 " +
+      sideRules.filter((r) => r.selectorText.includes('[data-slot="sidebar')).length + " 条")());
+    check("侧边栏规则不碰尺寸 / display（slot 是 display:contents，改了就塌）", (() => {
+      const text = sideRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      return !/(^|[;{ ])(width|height|min-width|min-height|padding|font-size|display|flex|position)\s*:/.test(text);
+    })(), (() => {
+      const text = sideRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
+      const bad = text.match(/(^|[;{ ])(width|height|min-width|min-height|padding|font-size|display|flex|position)\s*:/g);
+      return bad ? "含:" + bad.join(",") : "未触碰尺寸/display";
+    })());
+    check("侧边栏规则不用 var(--eva-*)（元素在覆盖层之外）", (() => {
+      const text = sideRules.map((r) => r.cssText).join(" ");
+      return !/var\(--eva-/.test(text);
+    })());
+
     // —— 输入框整体 + 弹出菜单：EVA「内部/外部」面板语言 ——
     const boxRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }

@@ -2,6 +2,37 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.16.0] —— 未发布
+
+### 变更
+
+- **左侧边栏统一为「内部 / 外部」面板语言**（与输入框同一套：黑底 + 硬边黄线 +
+  红黑危险条纹 + 亮黄强调）。
+
+  | 部位 | 钩子 | 做法 |
+  | --- | --- | --- |
+  | 侧栏面板本体 | `.WYye1W_root`（**哈希，尽力而为**） | 黑底 + 右缘 1px 硬边黄线 + 右缘 5px 红黑危险条纹 |
+  | 品牌 logo / 名字 | `data-slot="sidebar.brand.mark"` / `.brand.name`（官方） | 亮黄；名字再加大写 + 等宽 + 字距 |
+  | 新会话按钮 | `.WYye1W_newSession`（**哈希，尽力而为**） | 黑底黄框、悬停黄底 |
+  | 设置 / 页脚动作 / 面板按钮 | `data-slot="sidebar.settings"` / `.footer.action` / `.panellist`（官方） | 亮黄 |
+  | 会话行的前导标记 | `data-slot="sidebar.session.row.leading"`（官方） | 暗黄；**标题本身不动**，保证可读 |
+
+  颜色仍用字面量。实测侧栏面板仍是 **280×913**、内容列起点仍是 **280px**。
+
+### 一处结构性限制（值得记下来）
+
+侧边栏**没有 `data-sidebar-left` 这类钩子**（只有右侧栏有）。可用的稳定钩子是
+`data-slot` 系列（`sidebar` / `sidebar.brand.*` / `sidebar.session.row.*` …），
+**但它们全部带 `display:contents`（0×0 盒子）** —— 只能靠继承与后代选择器生效，
+**给不了侧边栏本体的背景/边框**（那层是哈希类名 `.WYye1W_root`）。
+
+所以这一版分两档处理：**面板本体用哈希类名（尽力而为，类名一变就静默失效、
+不会弄坏任何东西）**，**文字与强调用 data-slot 稳定钩子**。
+断言里加了一条守卫：侧边栏规则**不得触碰 width/height/padding/display/position**
+（slot 是 `display:contents`，一旦被改就会塌掉）。
+
+断言：宿主侧 46 项 + 浏览器侧 141 项。
+
 ## [0.15.1] —— 未发布
 
 ### 变更
