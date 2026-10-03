@@ -155,20 +155,39 @@ ctx.theme.overrideTokens("dsh-eva-magi-theme", {
 4. **覆盖层盖在所有内容之上**（`z-index` 取最大值，但 `pointer-events:none`）。
    这是刻意的：弹窗和提示也应该是 CRT 里的一部分。
 5. **仓库里没有 GUI 截图。** 本机 DSH 桌面版的 HTTP 服务拒绝非应用客户端，也拿不到
-   屏幕录制权限，所以无法自动截图。可核对的替代物是色卡页与令牌表（都由代码生成）。
+   屏幕录制权限，所以无法自动截图。可核对的替代物是色卡页与令牌表（都由代码生成），
+   以及 `npm run test:client` 那 40 项行为断言 —— 外观需要你目测，行为不再是黑箱。
 
 ---
 
 ## 开发
 
 ```bash
-node tools/gen-tokens-doc.mjs          # 重新生成 docs/TOKENS.md 与 docs/palette.html
-node tools/gen-tokens-doc.mjs --check  # 校验文档与代码一致（CI / 提交前）
-node --check lib/client.js             # 语法检查（浏览器半边是模块加载器外壳，不是 ESM）
+npm test                 # 令牌核对 + 浏览器半边端到端测试
+npm run test:tokens      # 只跑 token 检查
+npm run test:client      # 只跑浏览器半边测试（需要本机有 Chrome）
+npm run check            # 语法检查 + 校验文档与代码一致（提交前）
+npm run docs             # 重新生成 docs/TOKENS.md 与 docs/palette.html
 ```
 
-改 `lib/client.js` 里的 `PALETTE` 表 → 跑生成器 → 把 `docs/palette.html` 用浏览器打开，
-就能在无需装卸皮肤的情况下看到浅色/深色两侧的结果。
+### 浏览器半边怎么测
+
+`tools/client-harness.html` 在真实 DOM 里模拟 `window.__ModuleLoader__` 与一个假的
+`ctx`（记录 `effect` 与 `overrideTokens` 调用、并真的能回收），把 `apply()` 的完整
+生命周期跑一遍。**40 项断言**覆盖：
+
+- 模块 id 是否等于包名、`inject` 是否只依赖 `theme`；
+- 令牌层是否走 `overrideTokens`、是否 107 条、是否都是 `{light, dark}` 双值；
+- 样式表是否带 `data-plugin-css` 注入、浏览器是否真的解析成功（规则数 + 关键规则抽查）、
+  覆盖层是否挂上且 `pointer-events:none`；
+- 选项是否即时生效、是否拒绝未知键、是否持久化到 `localStorage`、新实例是否恢复；
+- **回收是否干净**：卸载后样式表、覆盖层、根元素标记、令牌层是否全部消失。
+
+`tools/run-client-harness.mjs` 用无头 Chrome 跑它并把结果变成退出码（找不到 Chrome 时
+跳过而不是失败）。这是「拿不到 GUI 截图」的正面替代：**外观要你目测，行为由测试保证**。
+
+改 `lib/client.js` 里的 `PALETTE` 表 → 跑 `npm run docs` → 用浏览器打开
+`docs/palette.html`，就能在无需装卸皮肤的情况下看到浅色/深色两侧的结果。
 
 **迭代皮肤本身**需要真实 GUI：改完代码 → 在插件管理器里重新添加本地目录（或刷新页面）。
 `lib/client.js` 是手写的模块加载器外壳，没有构建步骤、没有依赖，改完即生效。
@@ -176,13 +195,16 @@ node --check lib/client.js             # 语法检查（浏览器半边是模块
 ### 目录
 
 ```
-lib/index.js            宿主半边：只作为 loader 挂载点存在（空实现是刻意的）
-lib/client.js           浏览器半边：令牌表 + 皮肤样式表 + 选项；皮肤的全部内容
-cordis.patch.yml        挂载声明
+lib/index.js             宿主半边：只作为 loader 挂载点存在（空实现是刻意的）
+lib/client.js            浏览器半边：令牌表 + 皮肤样式表 + 选项；皮肤的全部内容
+cordis.patch.yml         挂载声明
 tools/gen-tokens-doc.mjs 由代码生成文档
-docs/DESIGN.md          设计推导：从 nerv-hud 到 --dsw-* 的逐条映射与取舍
-docs/TOKENS.md          令牌对照表（生成物）
-docs/palette.html       令牌色卡（生成物）
+tools/verify-tokens.mjs  令牌核对（形状 / 重复键 / 与官方令牌名比对）
+tools/client-harness.html 浏览器半边测试台（模拟 ModuleLoader 与 ctx）
+tools/run-client-harness.mjs 用无头 Chrome 跑测试台并转成退出码
+docs/DESIGN.md           设计推导：从 nerv-hud 到 --dsw-* 的逐条映射与取舍
+docs/TOKENS.md           令牌对照表（生成物）
+docs/palette.html        令牌色卡（生成物）
 ```
 
 ---

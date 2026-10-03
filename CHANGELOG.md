@@ -18,6 +18,15 @@
 - 8 个运行时选项，通过 `__EVA_MAGI_THEME__` 全局钩子调整，选择持久化到 `localStorage`。
 - `tools/gen-tokens-doc.mjs`：由 `lib/client.js` 生成 `docs/TOKENS.md` 与 `docs/palette.html`，
   保证文档与实现同源；`--check` 模式用于校验。
+- `tools/client-harness.html` + `tools/run-client-harness.mjs`：浏览器半边的端到端测试。
+  在真实 DOM 里模拟 `__ModuleLoader__` 与 `ctx`，跑完 `apply()` 的注册 / 注入 / 挂载 /
+  选项 / 回收全流程，共 40 项断言；无头 Chrome 执行，退出码可用于 CI（无 Chrome 时跳过）。
+
+### 修复
+
+- 移除 `dsh.client.inject` 里对官方主题包的引用。浏览器半边不 `require` 任何模块，
+  只依赖 Cordis 的 `theme` 服务注入，声明模块级依赖只会给启动图多加一次解析要求——
+  而解析失败是「响的」，代价不成比例。
 
 ### 说明
 

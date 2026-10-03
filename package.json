@@ -44,7 +44,9 @@
   "scripts": {
     "docs": "node tools/gen-tokens-doc.mjs",
     "check": "node --check lib/client.js && node --check lib/index.js && node tools/gen-tokens-doc.mjs --check",
-    "test": "node tools/verify-tokens.mjs",
+    "test": "npm run test:tokens && npm run test:client",
+    "test:tokens": "node tools/verify-tokens.mjs",
+    "test:client": "node tools/run-client-harness.mjs",
     "prepublishOnly": "npm run check && npm test"
   },
   "engines": {
