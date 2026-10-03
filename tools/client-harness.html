@@ -276,6 +276,51 @@ window.__ModuleLoader__ = {
       return Number.isFinite(min) && min > 60 && min < 400;
     })(), layer.querySelector(".eva-corner-stack").style.minWidth);
     // —— 右上角 TPS 波形面板 ——
+    check("太阳系装饰：铺满全屏 + 缓慢自转 + 旋转原点对准太阳", (() => {
+      // 用 CSSOM 逐属性断言：cssText 会把 animation 简写重排（实测是
+      // "240s linear 0s infinite normal none running eva-orbit"），正则写死会假失败。
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => r.selectorText === ".eva-rings");
+      if (!rule) return false;
+      const st = rule.style;
+      const mask = st.mask || st.webkitMask || "";
+      return /cover/.test(mask) &&
+        st.animationName === "eva-orbit" &&
+        st.animationDuration === "240s" &&
+        st.animationIterationCount === "infinite" &&
+        st.transformOrigin === "50% 50%" && st.width === "142vmax" && st.height === "142vmax";
+    })(), (() => {
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => r.selectorText === ".eva-rings");
+      if (!rule) return "(未找到规则)";
+      const st = rule.style;
+      return `mask=${st.mask || st.webkitMask} anim=${st.animationName} ${st.animationDuration} origin=${st.transformOrigin} size=${st.width}`;
+    })());
+    check("太阳系装饰尊重「减少动态效果」设置", (() => {
+      const media = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).filter((r) => r.media).find((r) => {
+        const text = String(r.conditionText || (r.media && r.media.mediaText) || "");
+        return text.includes("prefers-reduced-motion");
+      });
+      if (!media) return false;
+      const inner = [...media.cssRules].find((r) => r.selectorText === ".eva-rings");
+      return Boolean(inner) && inner.style.animationName === "none";
+    })());
+    check("装饰元素上确实跑着 eva-orbit 动画（240s）", (() => {
+      const el = layer.querySelector(".eva-rings");
+      if (!el) return false;
+      const cs = getComputedStyle(el);
+      return cs.animationName === "eva-orbit" && cs.animationDuration === "240s";
+    })(), (() => {
+      const el = layer.querySelector(".eva-rings");
+      if (!el) return "(无元素)";
+      const cs = getComputedStyle(el);
+      return `${cs.animationName} / ${cs.animationDuration} / ${cs.animationTimingFunction}`;
+    })());
+
     check("两个方块都常亮（不再闪烁）", (() => {
       const a = layer.querySelector(".eva-tps-head i");
       const b = layer.querySelector(".eva-hud-head i");
