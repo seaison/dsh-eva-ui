@@ -199,6 +199,32 @@ window.__ModuleLoader__ = {
     check("设置面板已建好且默认收起", Boolean(panel) && panel.hidden === true);
     const swCount = panel.querySelectorAll(".eva-sw").length;
     const rangeCount = panel.querySelectorAll('input[type="range"]').length;
+    check("开关是判决印章：承認 实心、否定 描边（两态背景不同）", (() => {
+      const sws = [...panel.querySelectorAll(".eva-sw")];
+      globalThis.__EVA_MAGI_THEME__.set("rings", false);
+      const off = sws.find((b) => b.getAttribute("aria-checked") === "false");
+      globalThis.__EVA_MAGI_THEME__.set("rings", true);
+      const on = sws.find((b) => b.getAttribute("aria-checked") === "true");
+      if (!on || !off) return false;
+      const onBg = getComputedStyle(on).backgroundColor;
+      const offBg = getComputedStyle(off).backgroundColor;
+      return offBg === "rgba(0, 0, 0, 0)" && onBg !== offBg && onBg !== "rgba(0, 0, 0, 0)";
+    })(), (() => {
+      const sws = [...panel.querySelectorAll(".eva-sw")];
+      const on = sws.find((b) => b.getAttribute("aria-checked") === "true");
+      const off = sws.find((b) => b.getAttribute("aria-checked") === "false");
+      return on && off ? `承認 ${getComputedStyle(on).backgroundColor} / 否定 ${getComputedStyle(off).backgroundColor}` : "(缺)";
+    })());
+    check("换成印章后开关尺寸不变（面板布局不动）", (() => {
+      const sws = [...panel.querySelectorAll(".eva-sw")];
+      const widths = new Set(sws.map((b) => Math.round(b.getBoundingClientRect().width)));
+      const heights = new Set(sws.map((b) => Math.round(b.getBoundingClientRect().height)));
+      return widths.size === 1 && heights.size === 1;
+    })(), (() => {
+      const sws = [...panel.querySelectorAll(".eva-sw")];
+      return `宽 ${[...new Set(sws.map((b) => Math.round(b.getBoundingClientRect().width)))]} 高 ${[...new Set(sws.map((b) => Math.round(b.getBoundingClientRect().height)))]}`;
+    })());
+
     check("面板含 11 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
       swCount === 11 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch",
@@ -209,10 +235,12 @@ window.__ModuleLoader__ = {
     check("展开后 aria-expanded 同步", hudEl.getAttribute("aria-expanded") === "true");
 
     const ringsSw = panel.querySelector('button[data-key="rings"]');
-    check("默认太阳系俯视图是 ON", ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "ON");
+    check("默认太阳系俯视图是「承認」",
+      ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "承認", ringsSw.textContent);
     ringsSw.click();
     check("点开关 → 选项生效并写进 <html> 标记", root.getAttribute("data-eva-rings") === "off");
-    check("点开关 → 按钮文本与 aria 同步", ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "OFF");
+    check("点开关 → 文本变「否定」且 aria 同步",
+      ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "否定", ringsSw.textContent);
     check("点开关 → 持久化到 localStorage", (() => {
       try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).rings === false; } catch { return false; }
     })());
