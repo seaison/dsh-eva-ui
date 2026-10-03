@@ -55,45 +55,98 @@
 
 ## 安装
 
-DSH 桌面版的插件管理在 **设置 → 插件 → 添加插件**，接受三种输入：npm 包名、GitHub 仓库地址、本地目录路径。
+### 先决条件（DSH 对插件的三条要求）
 
-### 本地目录（开发 / 未发布）
+1. 包必须声明组合包 —— `package.json` 里的 `dsh.bundle.patch` 指向一个 `cordis.patch.yml`。
+   没有它，插件管理器会直接拒绝：`这个包没有声明组合包，不能作为插件管理`。
+2. 不能带需要批准的安装脚本（`postinstall` 之类）。本插件没有任何安装脚本，
+   所以安装时不会弹批准框。
+3. `peerDependencies` 要和当前 DSH 运行时兼容（应用会校验并可能拒绝）。
+   本插件**零依赖、零 peer**，这一条自动满足。
 
-```
-/path/to/dsh-eva-magi-theme
-```
+### 方式 A：插件管理器（桌面版走这条）
 
-把这行路径粘进去即可。插件会被装进当前 profile，外观改动不需要重启应用，
-但**客户端半边需要刷新页面**（`Cmd+R`）才会重新进入启动清单。
+入口在**左侧栏的「插件」面板**（不是「设置」里），点它的图标，然后：
 
-### GitHub 仓库
+**「添加插件」** → 在「包名或地址」里填下面三种之一 → 安装
 
-```
-https://github.com/seaison/dsh-eva-ui
-```
+| 填什么 | 前提 | 例子 |
+| --- | --- | --- |
+| **本地目录路径** | 本机有这个目录 | `/Users/you/Desktop/dsh-eva-magi-theme` |
+| **GitHub 仓库地址** | 仓库已推送 | `https://github.com/seaison/dsh-eva-ui` |
+| **npm 包名** | 已发布到 npm | `dsh-eva-magi-theme` |
 
-> 仓库名是 `dsh-eva-ui`，包名是 `dsh-eva-magi-theme`。两者不一致是刻意的：
-> 包名是 DSH 加载器用来解析模块的 id（必须与 `lib/client.js` 里
-> `window.__ModuleLoader__.load({ id })` 完全相同），改名要动五处联动的地方，
-> 不值得为了对齐仓库名去冒这个险。安装时按包名或仓库地址都行。
+进度落在一个面板里（有安装引导和示例），完成后列表里会出现这个插件。
 
-### npm
+### 方式 B：命令行（只对非 `desktop` profile 有效）
 
 ```bash
-dsh plugin --profile <profile> add dsh-eva-magi-theme
+# 从自带的 web 模板建一个自己的 profile
+dsh <name> --from-default-profile web
+
+# 装 / 卸
+dsh plugin --profile <name> add link:/abs/path/to/dsh-eva-magi-theme
+dsh plugin --profile <name> add dsh-eva-magi-theme        # 也可以用包名
+dsh plugin --profile <name> remove dsh-eva-magi-theme
 ```
 
-> `desktop` profile 由 Electron 应用独占管理，CLI 会拒绝操作它 —— 桌面版请走插件管理界面。
+> `dsh plugin` 内部就是 **pnpm 的转发器**：它把依赖写进 profile 的 `package.json`、
+> 更新 `pnpm-lock.yaml`，并往 `dsh.profile.bundles` 里加一条。
+>
+> ⚠️ `--profile desktop` 会被**硬编码拒绝**（`profile "desktop" is managed exclusively
+> by the Electron application`）——那个 profile 归桌面应用独占，没有绕过开关。
+
+### 方式 C：桌面版的手工安装（CLI 被挡住时的变通）
+
+```bash
+P="$HOME/.dsh/profiles/desktop"
+PNPM="/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/pnpm/bin/pnpm.mjs"
+
+cd "$P"
+node "$PNPM" add "link:/abs/path/to/dsh-eva-magi-theme" --config.minimumReleaseAge=0
+
+# 再加 bundle 条目（这一步 pnpm 不管，必须自己做）
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path.home()/".dsh/profiles/desktop/package.json"
+d = json.loads(p.read_text())
+b = d["dsh"]["profile"]["bundles"]
+if "dsh-eva-magi-theme" not in b:
+    b.append("dsh-eva-magi-theme")
+    p.write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n")
+PY
+```
+
+**为什么必须走 pnpm，而不是手改 `package.json`**：只改 manifest 而不更新
+`pnpm-lock.yaml`，将来应用一旦以 `--frozen-lockfile` 安装，会因为两者不一致
+**直接把启动搞挂**。pnpm 会把依赖、`node_modules` 链接、lockfile 三样一次写对。
+
+### 生效时机
+
+- profile 里 `patchReload: live`（桌面版默认）→ 应用**自己热加载并重载界面**，
+  通常几秒内就能看到皮肤；
+- 否则需要刷新页面（`Cmd+R`），或按插件管理器的提示重启 —— 它的原话是
+  「更改将在下次启动生效」。
 
 ### 卸载
 
-设置 → 插件 → 找到 `dsh-eva-magi-theme` → 卸载，然后刷新页面。
-插件不写任何宿主侧状态、不改设置、不碰会话数据；卸载后唯一残留是 `localStorage`
-里的两个键（皮肤选项），删掉即可：
+插件管理器里找到 `dsh-eva-magi-theme` → 卸载；或按方式 C 反过来做：
+
+```bash
+cd "$HOME/.dsh/profiles/desktop"
+node "$PNPM" remove dsh-eva-magi-theme     # 再从 dsh.profile.bundles 里删掉那一行
+```
+
+插件不写任何宿主侧状态、不改设置、不碰会话数据。卸载后唯一残留是浏览器里的
+两个键（皮肤选项与会话标记），删掉即可：
 
 ```js
-localStorage.removeItem("dsh-eva-magi-theme:options")
+localStorage.removeItem("dsh-eva-magi-theme:options");
+sessionStorage.removeItem("dsh-eva-magi-theme:booted");
 ```
+
+> 用 `link:` 方式安装时，插件直接指向你的仓库目录 —— **别移动或删除那个目录**，
+> 否则插件会失效。好处是改完代码刷新一下即可，不用重装。
 
 ---
 
