@@ -1,0 +1,65 @@
+{
+  "name": "dsh-eva-magi-theme",
+  "version": "0.1.0",
+  "description": "EVA / MAGI 主题皮肤：把 NERV 中央教条区的界面语言装进 DSH Web GUI（--dsw-* 令牌层覆盖 + CRT 扫描线 / 硬边 / 等宽数字，明朝体汉字标题）",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "theme",
+    "skin",
+    "eva",
+    "magi",
+    "nerv",
+    "evangelion"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "tools",
+    "docs",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-client-ui-theme": "*"
+  },
+  "scripts": {
+    "docs": "node tools/gen-tokens-doc.mjs",
+    "check": "node --check lib/client.js && node --check lib/index.js && node tools/gen-tokens-doc.mjs --check",
+    "test": "node tools/verify-tokens.mjs",
+    "prepublishOnly": "npm run check && npm test"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seaison/dsh-eva-ui.git"
+  },
+  "homepage": "https://github.com/seaison/dsh-eva-ui#readme",
+  "bugs": {
+    "url": "https://github.com/seaison/dsh-eva-ui/issues"
+  },
+  "license": "MIT"
+}

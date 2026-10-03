@@ -1,0 +1,17 @@
+# ============================================================================
+# dsh-eva-magi-theme —— bundle patch（挂载声明）
+# ============================================================================
+# DSH 启动时按 bundle 层栈叠加各插件的 patch。本条目把皮肤插件挂进 profile 的
+# 配置树；因为包内声明了 dsh.client，宿主会同时把 lib/client.js 作为浏览器半边
+# 加入 window.__DSH_BOOT__ 的模块图，所以这一条同时负责「宿主挂载」与
+# 「客户端皮肤送达」。
+#
+# 安装：
+#   dsh plugin --profile desktop add dsh-eva-magi-theme
+#   或本地开发（不发布、直接链接本目录）：
+#   dsh plugin --profile desktop add link:/absolute/path/to/dsh-eva-magi-theme
+# ============================================================================
+
+- insert:
+    - id: eva-magi-theme
+      name: dsh-eva-magi-theme
