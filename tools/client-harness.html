@@ -26,7 +26,7 @@ window.__ModuleLoader__ = {
 </script>
 <script src="../lib/client.js"></script>
 <script>
-(() => {
+(async () => {
   "use strict";
   const results = [];
   const check = (name, ok, detail) => results.push({ name, ok: Boolean(ok), detail: detail ?? "" });
@@ -49,10 +49,11 @@ window.__ModuleLoader__ = {
     check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 15, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
-    const makeCtx = () => {
+    const makeCtx = (remote) => {
       const state = { effects: [], tokenCalls: [], tokenDisposed: 0 };
       return {
         state,
+        ...(remote ? { remote } : {}),
         effect(fn, label) {
           const dispose = fn();
           state.effects.push({ label, dispose });
@@ -114,7 +115,7 @@ window.__ModuleLoader__ = {
     check("结构框架：内嵌框 + 四个角标", q(".eva-frame") === 1 && q(".eva-corner") === 4, "角标 " + q(".eva-corner"));
     check("左右刻度尺都在", q(".eva-edge") === 2, String(q(".eva-edge")));
     check("顶边压力线与底部危险条纹都在", q(".eva-magi-top") === 1 && q(".eva-hazard") === 1);
-    check("反白标签块 2 个（会話記録 / 警戒態勢）", q(".eva-tag") === 2, String(q(".eva-tag")));
+    check("反白标签块 4 个（正面 2 + 余额背面 2）", q(".eva-tag") === 4, String(q(".eva-tag")));
     check("仪表簇含竖排汉字标签 + 方块流 16 格",
       q(".eva-hud-vlabel") === 1 && q(".eva-blocks i") === 16,
       `vlabel=${q(".eva-hud-vlabel")} blocks=${q(".eva-blocks i")}`);
@@ -306,6 +307,81 @@ window.__ModuleLoader__ = {
       `scan=${root.getAttribute("data-eva-scan")} grid=${root.getAttribute("data-eva-grid")} edges=${root.getAttribute("data-eva-edges")}`);
     for (const effect of ctx2.state.effects) effect.dispose();
     try { localStorage.removeItem(OPTIONS_KEY); } catch {}
+
+    // ================= 实例 3~6：点击标签翻面看余额 =================
+    // 余额现在是客户端 fetch 宿主路由（/dsh-eva-magi/balance.json）。
+    // 把 fetch 打桩，走完「成功 / 无密钥 / 宿主没装 / 网络断」四条路径。
+    // 钱包选择与金额归一化属于宿主侧逻辑，由 tools/verify-host.mjs 负责测。
+    const realFetch = globalThis.fetch;
+    const stubFetch = (impl) => { globalThis.fetch = impl; };
+    const settle = () => new Promise((r) => setTimeout(r, 30));
+    const mountFresh = () => {
+      const c = makeCtx();
+      exports.apply(c);
+      return { ctx: c, root: document.body.querySelector(".eva-magi-layer") };
+    };
+
+    {
+      stubFetch(async () => ({ status: 200, json: async () => ({ ok: true, currency: "CNY", balance: 12.34 }) }));
+      const { ctx: c3, root: r3 } = mountFresh();
+      const tags = r3.querySelector(".eva-tags");
+      check("标签块是双面的（正面峰谷 / 背面余额）",
+        tags.querySelectorAll(".eva-tags-face").length === 2 && tags.dataset.face === "front");
+      check("标签块带按钮语义（键盘可达）",
+        tags.getAttribute("role") === "button" && tags.getAttribute("tabindex") === "0");
+      tags.click();
+      check("点击翻到背面", tags.dataset.face === "back");
+      check("翻面时先显示取数中", r3.querySelector(".eva-tag--balance b").textContent === "取得中",
+        r3.querySelector(".eva-tag--balance b").textContent);
+      await settle();
+      check("宿主返回余额 → 显示 ¥12.34", r3.querySelector(".eva-tag--balance b").textContent === "\u00a512.34",
+        r3.querySelector(".eva-tag--balance b").textContent);
+      check("余额就绪后副文案为「残高」",
+        r3.querySelector(".eva-tag--balance small").textContent === "残高");
+      check("今日已用按约定留空（显示 —）",
+        r3.querySelector(".eva-tag--today b").textContent === "—");
+      tags.click();
+      check("再点一次翻回正面", tags.dataset.face === "front");
+      for (const e of c3.state.effects) e.dispose();
+    }
+
+    {
+      // 未配置密钥：副文案要说清原因，而不是笼统的"失败"
+      stubFetch(async () => ({ status: 200, json: async () => ({ ok: false, code: "NO_KEY" }) }));
+      const { ctx: c4, root: r4 } = mountFresh();
+      r4.querySelector(".eva-tags").click();
+      await settle();
+      check("没配密钥 → 取得不可 / 未配置密钥（不编数字）",
+        r4.querySelector(".eva-tag--balance b").textContent === "取得不可" &&
+          r4.querySelector(".eva-tag--balance small").textContent === "未配置密钥",
+        r4.querySelector(".eva-tag--balance b").textContent + "/" + r4.querySelector(".eva-tag--balance small").textContent);
+      for (const e of c4.state.effects) e.dispose();
+    }
+
+    {
+      stubFetch(async () => ({ status: 404, json: async () => ({}) }));
+      const { ctx: c5, root: r5 } = mountFresh();
+      r5.querySelector(".eva-tags").click();
+      await settle();
+      check("宿主半边没装上（404）→ 未対応，且皮肤其余部分照常",
+        r5.querySelector(".eva-tag--balance b").textContent === "未対応" &&
+          Boolean(r5.querySelector(".eva-hud")),
+        r5.querySelector(".eva-tag--balance b").textContent);
+      for (const e of c5.state.effects) e.dispose();
+    }
+
+    {
+      stubFetch(async () => { throw new Error("offline"); });
+      const { ctx: c6, root: r6 } = mountFresh();
+      r6.querySelector(".eva-tags").click();
+      await settle();
+      check("网络不通 → 取得不可 / 网络失败",
+        r6.querySelector(".eva-tag--balance b").textContent === "取得不可" &&
+          r6.querySelector(".eva-tag--balance small").textContent === "网络失败",
+        r6.querySelector(".eva-tag--balance b").textContent + "/" + r6.querySelector(".eva-tag--balance small").textContent);
+      for (const e of c6.state.effects) e.dispose();
+      globalThis.fetch = realFetch;
+    }
   } catch (error) {
     check("测试台未捕获异常", false, String(error && error.stack ? error.stack : error));
   }

@@ -1,6 +1,6 @@
 {
   "name": "dsh-eva-magi-theme",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "EVA / MAGI 主题皮肤：把 NERV 中央教条区的界面语言装进 DSH Web GUI（--dsw-* 令牌层覆盖 + CRT 扫描线 / 硬边 / 等宽数字，明朝体汉字标题）",
   "keywords": [
     "dsh",
@@ -40,13 +40,14 @@
   },
   "scripts": {
     "docs": "node tools/gen-tokens-doc.mjs",
-    "check": "node --check lib/client.js && node --check lib/index.js && node tools/gen-tokens-doc.mjs --check",
-    "test": "npm run test:manifest && npm run test:tokens && npm run test:contrast && npm run test:client",
+    "check": "node --check lib/client.js && node --check lib/index.js && node --check lib/host-balance.mjs && node tools/gen-tokens-doc.mjs --check",
+    "test": "npm run test:manifest && npm run test:tokens && npm run test:contrast && npm run test:host && npm run test:client",
     "test:manifest": "node tools/verify-manifest.mjs",
     "test:tokens": "node tools/verify-tokens.mjs",
     "test:contrast": "node tools/verify-contrast.mjs",
     "test:client": "node tools/run-client-harness.mjs",
-    "prepublishOnly": "npm run check && npm test"
+    "prepublishOnly": "npm run check && npm test",
+    "test:host": "node tools/verify-host.mjs"
   },
   "engines": {
     "node": "^22.19.0 || >=24"

@@ -2,6 +2,50 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] —— 未发布
+
+### 新增
+
+- **点击右下角两个标签块 → 3D 翻转 → 背面显示账户余额剩余**（如 `¥5.77 残高`）。
+  今日已用按约定留空（显示 `—`）：官方没有这个字段，它只存在于按 token 逐日累计的
+  本地账本里，本插件不复刻一套会过期的价目表。
+- **宿主半边从空实现变为一条只读余额路由**（`/dsh-eva-magi/balance.json`）：
+  客户端按设计读不到密钥，所以余额只能由宿主取。
+  ```
+  点击标签 → fetch 本机路由 → ctx.credentials.resolve("DEEPSEEK_API_KEY")
+           → GET https://api.deepseek.com/user/balance → 解析 balance_infos
+  ```
+  带 60 秒缓存与并发合并；失败时返回明确原因（未配置密钥 / HTTP 401 / 网络失败），
+  界面据此显示，**不编造数字**。
+- **请求栅栏**（`lib/host-balance.mjs`）：Host 必须回环、拒 `Sec-Fetch-Site: cross-site`、
+  带 Origin 时须同源、非 GET/HEAD 回 405。没有这三道，任意网页都能把你的余额读走。
+- `tools/verify-host.mjs`：宿主侧 46 项断言（含 DNS 重绑定、`127.0.0.1.evil.example`
+  后缀混淆、userinfo 混淆、跨源 Origin、以及"只认能确定的数字"）。
+
+### 修复（两个都是实机跑出来、单测与浏览器测试台都够不到的）
+
+- **`cannot get property "credentials" without inject`**：路由处理器里用了外层 `ctx`，
+  而它没声明过 `credentials` 注入。改用子作用域 `scope`。
+- **`credentials.resolve()` 返回的是 `{ value, source }`，不是裸字符串**。
+  写成 `"Bearer " + resolved` 会发出 `Bearer [object Object]`，
+  官方接口回 401 而错误信息只说"认证失败"—— 排查花了很久。
+  现在收敛到可单测的 `secretOf()`。
+
+### 安全事件与教训
+
+调试 401 时我加了个临时探针，本意是"只报形态不报值"，但顺手把
+`JSON.stringify(resolved)` 也带上了 —— **那把 API Key 明文打进了会话记录**。
+探针已删除，但教训写进了代码注释：**凭据永远不进日志、错误信息或调试响应**，
+排查形态只报类型与长度。
+
+### 说明
+
+- 宿主半边**刻意不把 `webServer`/`credentials` 写进 `exports.inject`**，
+  而是用子作用域 `ctx.inject([...], scope => ...)`：写进顶层会让整个插件在缺少
+  这些服务的组合里永远等不到依赖 —— 连皮肤都不会出现。现在服务缺失只是那一面
+  显示「未対応」。
+- 断言：宿主侧 46 项 + 浏览器侧 104 项。
+
 ## [0.5.1] —— 未发布
 
 ### 变更
