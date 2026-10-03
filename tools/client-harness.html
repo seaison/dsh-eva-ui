@@ -264,6 +264,17 @@ window.__ModuleLoader__ = {
       // 2.3 倍下两者都不满足 → 必须走 lifted 而不是 hidden
       return free < needFull && free < needCompact;
     })());
+    check("整栈宽度被锁定（min-width 已设），避免状态/倒计时文案变化时抽动", (() => {
+      const st = layer.querySelector(".eva-corner-stack");
+      const min = parseFloat(st.style.minWidth);
+      return Number.isFinite(min) && min > 60 && min < 400;
+    })(), layer.querySelector(".eva-corner-stack").style.minWidth);
+    check("推算标记用样式而不是加字（加字会撑宽整栈）", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return all.includes("data-inferred") && /text-decoration:\s*underline/.test(all);
+    })());
     check("三条（2 标签 + 仪表）宽度对齐：栈与面都用 stretch，标签内两端对齐", (() => {
       const all = [...document.styleSheets].flatMap((sh) => {
         try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
