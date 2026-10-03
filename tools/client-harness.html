@@ -224,9 +224,12 @@ window.__ModuleLoader__ = {
     document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     check("点面板外面收起面板", panel.hidden === true);
     // —— 仪表缩放 ——
-    check("默认缩放 1（写进 --eva-hud-scale）",
-      root.style.getPropertyValue("--eva-hud-scale").trim() === "1",
+    check("默认缩放 1.35（写进 --eva-hud-scale）",
+      root.style.getPropertyValue("--eva-hud-scale").trim() === "1.35",
       root.style.getPropertyValue("--eva-hud-scale"));
+    check("同时写入反向倍率，供面板把自己抵回原尺寸",
+      root.style.getPropertyValue("--eva-hud-scale-inv").trim() === String(1 / 1.35),
+      root.style.getPropertyValue("--eva-hud-scale-inv"));
     const scaleRange = panel.querySelector('.eva-row[data-key="hudScale"] input[type="range"]');
     check("面板有仪表尺寸滑杆（范围 0.7–1.6、步进 0.05）",
       Boolean(scaleRange) && scaleRange.min === "0.7" && scaleRange.max === "1.6" && scaleRange.step === "0.05",
@@ -242,6 +245,12 @@ window.__ModuleLoader__ = {
         try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
       }).join(" ");
       return all.includes("--eva-hud-scale") && all.includes("transform-origin");
+    })());
+    check("面板自身用反向倍率抵消缩放（调仪表不该改面板字号）", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return all.includes("--eva-hud-scale-inv") && /scale\(var\(--eva-hud-scale-inv/.test(all.replace(/\s/g, ""));
     })());
     check("缩放不影响扫描线滑杆的置灰逻辑", (() => {
       globalThis.__EVA_MAGI_THEME__.set("scanlines", false);
