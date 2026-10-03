@@ -281,13 +281,17 @@ window.__ModuleLoader__ = {
     check("选择器有专门样式，且只用官方 data-slot 钩子（不碰哈希类名）",
       slotRules.length >= 3 && slotRules.every((r) => !/VYXhfG|uWtHQG/.test(r.selectorText)),
       `${slotRules.length} 条规则`);
-    check("这些规则只用主题令牌 —— 元素在覆盖层之外，var(--eva-*) 取不到（踩过的坑）", (() => {
+    check("这些规则不引用 var(--eva-*) —— 元素在覆盖层之外取不到（踩过的坑第二次）", (() => {
+      // 真正的不变量只有这一条：出现过的变量必须都是主题令牌（--dsw-*），
+      // 或者干脆一个变量都不用（本选择器现在用字面量配黑底贴片）。
+      // 早先这里还要求"必须出现 --dsw-alias-"，那是把实现细节当成了不变量，已去掉。
       const text = slotRules.map((r) => r.cssText).join(" ");
-      return !/var\(--eva-/.test(text) && /var\(--dsw-alias-/.test(text);
+      const vars = text.match(/var\(--[a-z0-9-]+/g) || [];
+      return vars.every((v) => v.startsWith("var(--dsw-"));
     })(), (() => {
       const text = slotRules.map((r) => r.cssText).join(" ");
-      const bad = (text.match(/var\(--eva-[a-z-]+\)/g) || []).slice(0, 3);
-      return bad.length ? "误用:" + bad.join(",") : "仅主题令牌";
+      const vars = text.match(/var\(--[a-z0-9-]+/g) || [];
+      return vars.length ? vars.join(" ") : "(未使用任何变量，全字面量)";
     })());
     check("这些规则不改尺寸（不碰宽高/内边距/字号/display）", (() => {
       const text = slotRules.map((r) => r.cssText).join(" ").replace(/\s+/g, " ");
