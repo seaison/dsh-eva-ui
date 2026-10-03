@@ -233,6 +233,45 @@ window.__ModuleLoader__ = {
     const slotRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
     }).filter((r) => r.selectorText && r.selectorText.includes("conversation.input.model"));
+    // —— P4：警示带带宽统一 + 侧栏与底部同款 ——
+    const p4Rules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText);
+    check("P4：三条警示带带宽统一为 5px（输入框原来是 6px，是唯一不一致的一条）", (() => {
+      const bands = p4Rules.filter((r) => r.cssText &&
+        /repeating-linear-gradient/.test(r.cssText) &&
+        /(data-composer-card|conversation\.input\.permission|WYye1W_root)/.test(r.selectorText || ""));
+      const sized = bands.filter((r) => /background-size:\s*5px 100%/.test(r.cssText));
+      return bands.length >= 3 && sized.length === bands.length;
+    })(), (() => {
+      const bands = p4Rules.filter((r) => r.cssText &&
+        /repeating-linear-gradient/.test(r.cssText) &&
+        /(data-composer-card|conversation\.input\.permission|WYye1W_root)/.test(r.selectorText || ""));
+      return bands.map((r) => (r.selectorText || "").slice(0, 34) + "→" +
+        (/background-size:\s*5px 100%/.test(r.cssText) ? "5px" : "非5px")).join(" | ");
+    })());
+    check("侧栏警示带与屏幕底部那条完全同款（琥珀 + 5px/5px 斜纹）", (() => {
+      // 用规范化后的**原始声明文本**比对，而不是 style.backgroundImage：
+      // .eva-hazard 用的是 background 简写且内含 var()，CSSOM 无法把含 var() 的简写
+      // 展开成 longhand，style.backgroundImage 会返回空字符串（踩过）。
+      // 这里直接要求两条规则都含有那个**逐字符相同的**渐变定义。
+      const CANON = "repeating-linear-gradient(45deg,var(--dsw-alias-state-warn-primary)05px,rgba(0,0,0,0)5px10px)";
+      const find = (sel) => p4Rules.find((r) => (r.selectorText || "").trim() === sel);
+      const side = find("html[data-eva-magi] body[data-ds-dark-theme] .WYye1W_root");
+      const tape = find(".eva-hazard");
+      if (!side || !tape) return false;
+      const has = (r) => String(r.cssText || "").replace(/\s+/g, "").includes(CANON);
+      return has(side) && has(tape);
+    })(), (() => {
+      const CANON = "repeating-linear-gradient(45deg,var(--dsw-alias-state-warn-primary)05px,rgba(0,0,0,0)5px10px)";
+      const find = (sel) => p4Rules.find((r) => (r.selectorText || "").trim() === sel);
+      const side = find("html[data-eva-magi] body[data-ds-dark-theme] .WYye1W_root");
+      const tape = find(".eva-hazard");
+      if (!side || !tape) return "(未找到规则)";
+      const has = (r) => String(r.cssText || "").replace(/\s+/g, "").includes(CANON);
+      return `侧栏${has(side) ? "✓" : "✗"} 底部${has(tape) ? "✓" : "✗"} 同一渐变定义`;
+    })());
+
     // —— P3：侧栏分组标题 ——
     const headRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
