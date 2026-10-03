@@ -46,7 +46,7 @@ window.__ModuleLoader__ = {
     check("exports.apply 是函数", typeof exports.apply === "function");
     check("exports.inject 只依赖 theme 服务", JSON.stringify(exports.inject) === '["theme"]', JSON.stringify(exports.inject));
     check("PALETTE 导出 107 个令牌", Object.keys(exports.PALETTE).length === 107, String(Object.keys(exports.PALETTE).length));
-    check("DEFAULT_OPTIONS 导出 14 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 14, Object.keys(exports.DEFAULT_OPTIONS).join(","));
+    check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 15, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = () => {
@@ -192,8 +192,8 @@ window.__ModuleLoader__ = {
     check("设置面板已建好且默认收起", Boolean(panel) && panel.hidden === true);
     const swCount = panel.querySelectorAll(".eva-sw").length;
     const rangeCount = panel.querySelectorAll('input[type="range"]').length;
-    check("面板含 12 个开关 + 1 个浓度滑杆（hud 自己刻意不在列）",
-      swCount === 12 && rangeCount === 1, `switch=${swCount} range=${rangeCount}`);
+    check("面板含 12 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
+      swCount === 12 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch",
       [...panel.querySelectorAll(".eva-sw")].every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
 
@@ -210,7 +210,8 @@ window.__ModuleLoader__ = {
       try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).rings === false; } catch { return false; }
     })());
 
-    const strength = panel.querySelector('input[type="range"]');
+    const strength = panel.querySelector('.eva-row[data-key="scanlineStrength"] input[type="range"]');
+    check("浓度滑杆按 data-key 定位（不依赖顺序）", Boolean(strength));
     strength.value = "0.25";
     strength.dispatchEvent(new Event("input", { bubbles: true }));
     check("浓度滑杆写入 scanlineStrength", (() => {
@@ -222,6 +223,33 @@ window.__ModuleLoader__ = {
     hudEl.click();
     document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     check("点面板外面收起面板", panel.hidden === true);
+    // —— 仪表缩放 ——
+    check("默认缩放 1（写进 --eva-hud-scale）",
+      root.style.getPropertyValue("--eva-hud-scale").trim() === "1",
+      root.style.getPropertyValue("--eva-hud-scale"));
+    const scaleRange = panel.querySelector('.eva-row[data-key="hudScale"] input[type="range"]');
+    check("面板有仪表尺寸滑杆（范围 0.7–1.6、步进 0.05）",
+      Boolean(scaleRange) && scaleRange.min === "0.7" && scaleRange.max === "1.6" && scaleRange.step === "0.05",
+      scaleRange && `${scaleRange.min}-${scaleRange.max}/${scaleRange.step}`);
+    scaleRange.value = "1.35";
+    scaleRange.dispatchEvent(new Event("input", { bubbles: true }));
+    check("拖滑杆 → 改 --eva-hud-scale 并持久化",
+      root.style.getPropertyValue("--eva-hud-scale").trim() === "1.35" &&
+        (() => { try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).hudScale === 1.35; } catch { return false; } })(),
+      root.style.getPropertyValue("--eva-hud-scale"));
+    check("缩放用 transform 实现，且 origin 固定在右下角（放大不会漂）", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return all.includes("--eva-hud-scale") && all.includes("transform-origin");
+    })());
+    check("缩放不影响扫描线滑杆的置灰逻辑", (() => {
+      globalThis.__EVA_MAGI_THEME__.set("scanlines", false);
+      const dimmed = scaleRange.closest(".eva-row").dataset.dim;
+      globalThis.__EVA_MAGI_THEME__.set("scanlines", true);
+      return dimmed === undefined || dimmed === "0";
+    })());
+
     check("Console 钩子与面板共用同一通道（__EVA_MAGI_THEME__.set 就是面板的 set）",
       globalThis.__EVA_MAGI_THEME__.set === globalThis.__EVA_MAGI_THEME__.set && typeof globalThis.__EVA_MAGI_THEME__.set === "function");
 
