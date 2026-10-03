@@ -1,0 +1,32 @@
+# 每次推送与 PR 都跑一遍：打包不变量、令牌核对、浏览器半边端到端测试。
+#
+# 这里刻意没有 npm install / npm ci —— 本插件零依赖、无构建步骤、无 lockfile，
+# 克隆下来就能直接跑。tools/verify-manifest.mjs 会把「零依赖」这条性质钉住，
+# 所以这个 job 不会因为将来有人加了 dependencies 而悄悄失效：它会直接失败。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # 语法检查 + 文档与代码是否同步（docs/ 是生成物，改了 PALETTE 忘了跑生成器会在这里失败）
+      - name: 静态检查
+        run: npm run check
+
+      # 打包不变量 + 令牌核对 + 浏览器半边测试台
+      # （测试台需要 Chrome；ubuntu runner 自带 google-chrome-stable，
+      #  没有时 run-client-harness.mjs 会跳过而不是失败）
+      - name: 测试
+        run: npm test

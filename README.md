@@ -163,12 +163,17 @@ ctx.theme.overrideTokens("dsh-eva-magi-theme", {
 ## 开发
 
 ```bash
-npm test                 # 令牌核对 + 浏览器半边端到端测试
+npm test                 # 打包不变量 + 令牌核对 + 浏览器半边端到端测试
+npm run test:manifest    # 只跑打包不变量（包名/id/patch 三处一致、文件都存在、零依赖）
 npm run test:tokens      # 只跑 token 检查
 npm run test:client      # 只跑浏览器半边测试（需要本机有 Chrome）
 npm run check            # 语法检查 + 校验文档与代码一致（提交前）
 npm run docs             # 重新生成 docs/TOKENS.md 与 docs/palette.html
 ```
+
+> 本插件**零依赖**：没有 `dependencies`、没有 `peerDependencies`、没有构建步骤、
+> 没有 lockfile。所以 CI 里不需要 `npm install`，克隆下来直接就能跑上面这些命令。
+> `npm run test:manifest` 会把这条性质钉住。
 
 ### 浏览器半边怎么测
 
@@ -198,13 +203,15 @@ npm run docs             # 重新生成 docs/TOKENS.md 与 docs/palette.html
 lib/index.js             宿主半边：只作为 loader 挂载点存在（空实现是刻意的）
 lib/client.js            浏览器半边：令牌表 + 皮肤样式表 + 选项；皮肤的全部内容
 cordis.patch.yml         挂载声明
-tools/gen-tokens-doc.mjs 由代码生成文档
+tools/verify-manifest.mjs 打包不变量：三处名字一致、路径存在、零依赖
 tools/verify-tokens.mjs  令牌核对（形状 / 重复键 / 与官方令牌名比对）
+tools/gen-tokens-doc.mjs 由代码生成文档
 tools/client-harness.html 浏览器半边测试台（模拟 ModuleLoader 与 ctx）
 tools/run-client-harness.mjs 用无头 Chrome 跑测试台并转成退出码
 docs/DESIGN.md           设计推导：从 nerv-hud 到 --dsw-* 的逐条映射与取舍
 docs/TOKENS.md           令牌对照表（生成物）
 docs/palette.html        令牌色卡（生成物）
+.github/workflows/ci.yml 每次推送跑 check + test
 ```
 
 ---
