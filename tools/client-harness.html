@@ -225,16 +225,20 @@ window.__ModuleLoader__ = {
     document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     check("点面板外面收起面板", panel.hidden === true);
     // —— 仪表缩放 ——
-    check("默认缩放 1.35（写进 --eva-hud-scale）",
-      root.style.getPropertyValue("--eva-hud-scale").trim() === "1.35",
+    check("默认缩放 1.5（写进 --eva-hud-scale）",
+      root.style.getPropertyValue("--eva-hud-scale").trim() === "1.5",
       root.style.getPropertyValue("--eva-hud-scale"));
     check("同时写入反向倍率，供面板把自己抵回原尺寸",
-      root.style.getPropertyValue("--eva-hud-scale-inv").trim() === String(1 / 1.35),
+      root.style.getPropertyValue("--eva-hud-scale-inv").trim() === String(1 / 1.5),
       root.style.getPropertyValue("--eva-hud-scale-inv"));
     const scaleRange = panel.querySelector('.eva-row[data-key="hudScale"] input[type="range"]');
-    check("面板有仪表尺寸滑杆（范围 0.7–1.6、步进 0.05）",
-      Boolean(scaleRange) && scaleRange.min === "0.7" && scaleRange.max === "1.6" && scaleRange.step === "0.05",
+    check("面板有仪表尺寸滑杆（范围 0.7–2.3、步进 0.05）",
+      Boolean(scaleRange) && scaleRange.min === "0.7" && scaleRange.max === "2.3" && scaleRange.step === "0.05",
       scaleRange && `${scaleRange.min}-${scaleRange.max}/${scaleRange.step}`);
+    check("默认值 1.5 正好是滑杆范围的中点（「中间大小」）",
+      (Number(scaleRange.min) + Number(scaleRange.max)) / 2 === 1.5,
+      `${scaleRange.min}~${scaleRange.max}`);
+    check("放大空间比上一版更大（上限 2.3 > 1.6）", Number(scaleRange.max) > 1.6);
     scaleRange.value = "1.35";
     scaleRange.dispatchEvent(new Event("input", { bubbles: true }));
     check("拖滑杆 → 改 --eva-hud-scale 并持久化",
@@ -246,6 +250,19 @@ window.__ModuleLoader__ = {
         try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
       }).join(" ");
       return all.includes("--eva-hud-scale") && all.includes("transform-origin");
+    })());
+    check("角落塞不下时有「抬到输入框上方」兜底，而不是直接消失", (() => {
+      const all = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules].map((r) => r.cssText); } catch { return []; }
+      }).join(" ");
+      return all.includes("lifted-compact");
+    })());
+    check("大尺寸下兜底档位会真的触发（模拟 1600 宽窗口算一遍）", (() => {
+      // free = 227（实测：输入框右缘 1373、视口 1600）
+      const free = 227, GUTTER = 24, scale = 2.3;
+      const needFull = 134 * scale + GUTTER, needCompact = 112 * scale + GUTTER;
+      // 2.3 倍下两者都不满足 → 必须走 lifted 而不是 hidden
+      return free < needFull && free < needCompact;
     })());
     check("面板自身用反向倍率抵消缩放（调仪表不该改面板字号）", (() => {
       const all = [...document.styleSheets].flatMap((sh) => {
