@@ -205,9 +205,9 @@ window.__ModuleLoader__ = {
     const rangeCount = panel.querySelectorAll('input[type="range"]').length;
     check("开关是判决印章：承認 实心、否定 描边（两态背景不同）", (() => {
       const sws = [...panel.querySelectorAll(".eva-sw")];
-      globalThis.__EVA_MAGI_THEME__.set("rings", false);
+      // 默认的 11 个开关里本来就有承認与否定两种状态，不需要切任何开关
+      // （早先这里切 chrome，结果把整个覆盖层连同面板一起藏了，反而测不准）
       const off = sws.find((b) => b.getAttribute("aria-checked") === "false");
-      globalThis.__EVA_MAGI_THEME__.set("rings", true);
       const on = sws.find((b) => b.getAttribute("aria-checked") === "true");
       if (!on || !off) return false;
       const onBg = getComputedStyle(on).backgroundColor;
@@ -295,6 +295,37 @@ window.__ModuleLoader__ = {
       headRules.every((r) => r.selectorText.includes('[data-slot="sidebar"]') &&
         r.selectorText.includes("data-ds-dark-theme")))(),
       (() => headRules.length + " 条"));
+
+    // —— 壁纸四态 ——
+    const wallRules = [...document.styleSheets].flatMap((sh) => {
+      try { return [...sh.cssRules]; } catch { return []; }
+    }).filter((r) => r.selectorText && /data-eva-wallpaper=/.test(r.selectorText));
+    check("壁纸有 4 态规则（atfield / tree / solar / off）", (() => {
+      const vals = ["atfield", "tree", "solar", "off"];
+      return vals.every((v) => wallRules.some((r) => r.selectorText.includes('"' + v + '"')));
+    })(), (() => wallRules.map((r) => r.selectorText.replace(/html\[data-eva-magi\]\s*/, "")).join(" | ").slice(0, 130))());
+    check("铺满型壁纸（AT 力场 / 太阳系）用 cover，生命之树用完整尺寸且不自转", (() => {
+      const find = (v) => wallRules.find((r) => r.selectorText.includes('"' + v + '"'));
+      const at = find("atfield"), so = find("solar"), tr = find("tree"), off = find("off");
+      if (!at || !so || !tr || !off) return false;
+      // 直接读长属性（mask-size / animation-name / display）：
+      // style.mask（简写 getter）对只写了长属性的规则会返回空串（踩过）。
+      const sizeOf = (r) => r.style.maskSize || r.style.webkitMaskSize || "";
+      const animOf = (r) => r.style.animationName || "";
+      return /cover/.test(sizeOf(at)) && /cover/.test(sizeOf(so)) &&
+        /min\(94vh/.test(sizeOf(tr)) && animOf(tr) === "none" &&
+        off.style.display === "none";
+    })(), (() => {
+      const find = (v) => wallRules.find((r) => r.selectorText.includes('"' + v + '"'));
+      return ["atfield", "tree", "solar", "off"].map((v) => {
+        const r = find(v);
+        if (!r) return v + ":(缺)";
+        const size = r.style.maskSize || r.style.webkitMaskSize || "(未设)";
+        const anim = r.style.animationName || "(未设)";
+        const disp = r.style.display || "(未设)";
+        return `${v}: size=${size} anim=${anim} display=${disp}`;
+      }).join(" | ");
+    })());
 
     // —— P1 守卫：所有「黑底贴片」样式必须限定在深色主题 ——
     const allRules = [...document.styleSheets].flatMap((sh) => {
@@ -431,23 +462,38 @@ window.__ModuleLoader__ = {
 
     check("面板含 11 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
       swCount === 11 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
-    check("每个开关都带 data-key 与 role=switch",
-      [...panel.querySelectorAll(".eva-sw")].every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
+    check("每个开关都带 data-key 与 role=switch（循环控件除外）",
+      [...panel.querySelectorAll(".eva-sw:not(.eva-cyc)")]
+        .every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
+    check("壁纸循环控件带 data-key 与 aria-label，且不冒充 switch", (() => {
+      const c = panel.querySelector(".eva-cyc");
+      return Boolean(c) && Boolean(c.dataset.key) && Boolean(c.getAttribute("aria-label")) &&
+        c.getAttribute("role") !== "switch";
+    })());
 
     hudEl.click();
     check("点击仪表展开面板", panel.hidden === false);
     check("展开后 aria-expanded 同步", hudEl.getAttribute("aria-expanded") === "true");
 
-    const ringsSw = panel.querySelector('button[data-key="rings"]');
-    check("默认太阳系俯视图是「承認」",
-      ringsSw.getAttribute("aria-checked") === "true" && ringsSw.textContent === "承認", ringsSw.textContent);
-    ringsSw.click();
-    check("点开关 → 选项生效并写进 <html> 标记", root.getAttribute("data-eva-rings") === "off");
-    check("点开关 → 文本变「否定」且 aria 同步",
-      ringsSw.getAttribute("aria-checked") === "false" && ringsSw.textContent === "否定", ringsSw.textContent);
-    check("点开关 → 持久化到 localStorage", (() => {
-      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).rings === false; } catch { return false; }
+    const wallBtn = panel.querySelector('button[data-key="wallpaper"]');
+    check("壁纸默认是「AT 力场」", wallBtn.getAttribute("aria-checked") === "true" && wallBtn.textContent === "AT 力场",
+      wallBtn.textContent);
+    check("默认把壁纸写进 <html> 标记", root.getAttribute("data-eva-wallpaper") === "atfield",
+      root.getAttribute("data-eva-wallpaper"));
+    wallBtn.click();
+    check("点一下循环到下一个壁纸（AT 力场 → 生命之树）",
+      wallBtn.textContent === "生命之树" && root.getAttribute("data-eva-wallpaper") === "tree",
+      wallBtn.textContent + " / " + root.getAttribute("data-eva-wallpaper"));
+    wallBtn.click(); wallBtn.click();
+    check("循环到「关闭」时 aria-checked 为 false",
+      wallBtn.textContent === "关闭" && wallBtn.getAttribute("aria-checked") === "false" &&
+      root.getAttribute("data-eva-wallpaper") === "off", wallBtn.textContent);
+    check("壁纸选择已存进 localStorage", (() => {
+      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).wallpaper === "off"; } catch { return false; }
     })());
+    wallBtn.click();
+    check("再点一下回到第一个（关闭 → AT 力场）",
+      wallBtn.textContent === "AT 力场" && root.getAttribute("data-eva-wallpaper") === "atfield", wallBtn.textContent);
 
     const strength = panel.querySelector('.eva-row[data-key="scanlineStrength"] input[type="range"]');
     check("浓度滑杆按 data-key 定位（不依赖顺序）", Boolean(strength));
@@ -517,8 +563,9 @@ window.__ModuleLoader__ = {
       if (!rule) return false;
       const st = rule.style;
       const mask = st.mask || st.webkitMask || "";
-      return /cover/.test(mask) &&
-        st.animationName === "eva-orbit" &&
+      // 基础规则只留通用部分（自转 / 原点 / 大正方形）；掩膜尺寸已按壁纸分规则，
+      // 所以「铺满」这件事要在壁纸规则里查（见下一条断言）。
+      return st.animationName === "eva-orbit" &&
         st.animationDuration === "240s" &&
         st.animationIterationCount === "infinite" &&
         st.transformOrigin === "50% 50%" && st.width === "142vmax" && st.height === "142vmax";
