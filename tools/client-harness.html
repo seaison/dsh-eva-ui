@@ -143,6 +143,7 @@ window.__ModuleLoader__ = {
     check("默认硬边开", root.getAttribute("data-eva-edges") === "hard", root.getAttribute("data-eva-edges"));
     check("默认明朝体标题开", root.getAttribute("data-eva-mincho") === "on", root.getAttribute("data-eva-mincho"));
     check("默认网格关（避免默认就上测绘底纹）", root.getAttribute("data-eva-grid") === "off", root.getAttribute("data-eva-grid"));
+    check("默认场同步带关（那条滚动的白线，已按要求去掉）", root.getAttribute("data-eva-beam") === "off", root.getAttribute("data-eva-beam"));
     check("默认结构框架开", root.getAttribute("data-eva-chrome") === "on", root.getAttribute("data-eva-chrome"));
     check("默认仪表簇开", root.getAttribute("data-eva-hud") === "on", root.getAttribute("data-eva-hud"));
     check("扫描线浓度写进自定义属性", root.style.getPropertyValue("--eva-scan-strength") !== "");
