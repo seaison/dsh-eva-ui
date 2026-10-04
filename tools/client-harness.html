@@ -46,7 +46,7 @@ window.__ModuleLoader__ = {
     check("exports.apply 是函数", typeof exports.apply === "function");
     check("exports.inject 只依赖 theme 服务", JSON.stringify(exports.inject) === '["theme"]', JSON.stringify(exports.inject));
     check("PALETTE 导出 107 个令牌", Object.keys(exports.PALETTE).length === 107, String(Object.keys(exports.PALETTE).length));
-    check("DEFAULT_OPTIONS 导出 14 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 14, Object.keys(exports.DEFAULT_OPTIONS).join(","));
+    check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 15, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = (remote) => {
@@ -127,6 +127,8 @@ window.__ModuleLoader__ = {
       `vlabel=${q(".eva-hud-vlabel")} blocks=${q(".eva-blocks i")}`);
 
     // —— 仪表读数是真实的，不是假遥测 ——
+    // HUD 的時刻读数用的是 .eva-clock（与新增的 .eva-clockpanel 是两回事，
+    // 改名时这里被顺带改错了，已修回）
     const clockText = layer.querySelector(".eva-clock")?.textContent ?? "";
     check("時刻 是真实时钟（HH:MM:SS）", /^\d{2}:\d{2}:\d{2}$/.test(clockText), clockText);
     const viewText = layer.querySelector(".eva-view")?.textContent ?? "";
@@ -295,6 +297,36 @@ window.__ModuleLoader__ = {
       headRules.every((r) => r.selectorText.includes('[data-slot="sidebar"]') &&
         r.selectorText.includes("data-ds-dark-theme")))(),
       (() => headRules.length + " 条"));
+
+    // —— 七段大时钟 ——
+    check("大时钟面板存在：6 位七段 + 4 个灯 + 日期", (() => {
+      const el = layer.querySelector(".eva-clockpanel");
+      if (!el) return false;
+      const digits = el.querySelectorAll(".eva-cp-dg");
+      const lamps = el.querySelectorAll(".eva-cp-lamps span");
+      return digits.length === 6 && lamps.length === 4 &&
+        Boolean(el.querySelector(".eva-cp-date")) &&
+        Boolean(el.querySelector(".eva-cp-tz")) &&
+        Boolean(el.querySelector(".eva-cp-utc"));
+    })(), (() => {
+      const el = layer.querySelector(".eva-clockpanel");
+      if (!el) return "(无时钟)";
+      return `七段 ${el.querySelectorAll(".eva-cp-dg").length} · 灯 ${el.querySelectorAll(".eva-cp-lamps span").length}`;
+    })());
+    check("七段靠切换 defs 里的字形引用（use href 指向 #eva-dN）", (() => {
+      const el = layer.querySelector(".eva-clockpanel");
+      if (!el) return false;
+      const hrefs = [...el.querySelectorAll(".eva-cp-dg use")].map((u) => u.getAttribute("href"));
+      return hrefs.length === 6 && hrefs.every((h) => /^#eva-d[0-9]$/.test(h));
+    })(), (() => [...(layer.querySelector(".eva-clockpanel")?.querySelectorAll(".eva-cp-dg use") || [])].map((u) => u.getAttribute("href")).join(" "))());
+    check("日期已填真实值（不是占位符）", (() => {
+      const el = layer.querySelector(".eva-cp-date");
+      return Boolean(el) && /^\d{4}-\d{2}-\d{2}$/.test(el.textContent);
+    })(), (() => layer.querySelector(".eva-cp-date")?.textContent || "(无)")());
+    check("字形定义齐全（defs 里有 10 个数字）", (() => {
+      const ids = [...layer.querySelectorAll("defs g")].map((g) => g.id).filter((id) => /^eva-d\d$/.test(id));
+      return ids.length === 10;
+    })(), (() => [...layer.querySelectorAll("defs g")].map((g) => g.id).join(" "))());
 
     // —— P5：启动自检 ——
     check("暴露 diagnose()：只读体检，返回命中/未命中", (() => {
@@ -492,8 +524,8 @@ window.__ModuleLoader__ = {
       return bad ? "含:" + bad.join(",") : "未触碰尺寸属性";
     })());
 
-    check("面板含 11 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
-      swCount === 11 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
+    check("面板含 12 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
+      swCount === 12 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch（循环控件除外）",
       [...panel.querySelectorAll(".eva-sw:not(.eva-cyc)")]
         .every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
