@@ -82,7 +82,7 @@ window.__ModuleLoader__ = {
     const ctx = makeCtx();
     exports.apply(ctx);
 
-    check("apply 注册了 4 个 effect（样式表 / 装饰层 / 开机序列 / 令牌层）", ctx.state.effects.length === 4,
+    check("apply 注册了 5 个 effect（自检 / 样式表 / 装饰层 / 开机序列 / 令牌层）", ctx.state.effects.length === 5,
       ctx.state.effects.map((e) => e.label).join(" | "));
     check("每个 effect 都返回了可回收的 dispose", ctx.state.effects.every((e) => typeof e.dispose === "function"));
 
@@ -295,6 +295,38 @@ window.__ModuleLoader__ = {
       headRules.every((r) => r.selectorText.includes('[data-slot="sidebar"]') &&
         r.selectorText.includes("data-ds-dark-theme")))(),
       (() => headRules.length + " 条"));
+
+    // —— P5：启动自检 ——
+    check("暴露 diagnose()：只读体检，返回命中/未命中", (() => {
+      const api = globalThis.__EVA_MAGI_THEME__;
+      if (typeof api.diagnose !== "function") return false;
+      const r = api.diagnose();
+      return typeof r.checked === "number" && r.checked >= 10 && Array.isArray(r.missing);
+    })(), (() => {
+      const api = globalThis.__EVA_MAGI_THEME__;
+      if (typeof api.diagnose !== "function") return "(无 diagnose)";
+      const r = api.diagnose();
+      return `检查 ${r.checked} 条，未命中 ${r.missing.length} 条`;
+    })());
+    check("自检确实在查 DOM（测试台没有应用结构 → 应当全部未命中）", (() => {
+      const r = globalThis.__EVA_MAGI_THEME__.diagnose();
+      // 测试台是精简假页面，没有任何应用钩子；若这里报「命中」就说明它没真查
+      return r.missing.length === r.checked;
+    })());
+    check("自检清单覆盖已知的哈希类名依赖，并标注是否必需", (() => {
+      const r = globalThis.__EVA_MAGI_THEME__.diagnose();
+      const sels = r.missing.map((m) => m.sel);
+      const hashed = [".WYye1W_root", ".WYye1W_newSession"];
+      return hashed.every((x) => sels.includes(x)) &&
+        r.missing.every((m) => typeof m.required === "boolean" && m.what && m.sel) &&
+        r.missing.some((m) => m.required) && r.missing.some((m) => !m.required);
+    })());
+    check("传入自定义 document 时按传入的查（便于单测）", (() => {
+      const fake = { querySelector: (sel) => (sel === ".WYye1W_root" ? {} : null) };
+      const r = globalThis.__EVA_MAGI_THEME__.diagnose(fake);
+      return r.checked >= 10 && r.missing.length === r.checked - 1 &&
+        !r.missing.some((m) => m.sel === ".WYye1W_root");
+    })());
 
     // —— 壁纸四态 ——
     const wallRules = [...document.styleSheets].flatMap((sh) => {
@@ -728,7 +760,7 @@ window.__ModuleLoader__ = {
     exports.apply(ctx2);
     check("新实例从 localStorage 恢复了选项（scanlines 仍为 on）", root.getAttribute("data-eva-scan") === "on");
     check("新实例恢复了 grid 开", root.getAttribute("data-eva-grid") === "on");
-    check("开机序列每会话只放一次（第二个实例不注册它）", ctx2.state.effects.length === 3,
+    check("开机序列每会话只放一次（第二个实例不注册它）", ctx2.state.effects.length === 4,
       String(ctx2.state.effects.length));
     globalThis.__EVA_MAGI_THEME__.reset();
     check("reset() 回到默认值（扫描线关、网格关、硬边恢复）",
