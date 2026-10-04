@@ -46,7 +46,7 @@ window.__ModuleLoader__ = {
     check("exports.apply 是函数", typeof exports.apply === "function");
     check("exports.inject 只依赖 theme 服务", JSON.stringify(exports.inject) === '["theme"]', JSON.stringify(exports.inject));
     check("PALETTE 导出 107 个令牌", Object.keys(exports.PALETTE).length === 107, String(Object.keys(exports.PALETTE).length));
-    check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 15, Object.keys(exports.DEFAULT_OPTIONS).join(","));
+    check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 16, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = (remote) => {
@@ -328,6 +328,50 @@ window.__ModuleLoader__ = {
       return ids.length === 10;
     })(), (() => [...layer.querySelectorAll("defs g")].map((g) => g.id).join(" "))());
 
+    // —— 时钟尺寸可调 + 左栏整体居中 ——
+    check("时钟尺寸滑杆存在（0.6–2，步进 0.05）", (() => {
+      const input = panel.querySelector('.eva-row[data-key="clockScale"] input[type="range"]');
+      return Boolean(input) && input.min === "0.6" && input.max === "2" && input.step === "0.05";
+    })(), (() => {
+      const input = panel.querySelector('.eva-row[data-key="clockScale"] input[type="range"]');
+      return input ? `${input.min}–${input.max} 步进 ${input.step}` : "(无滑杆)";
+    })());
+    check("改时钟尺寸会写进 --eva-clock-scale（面板缩小不动对齐位置）", (() => {
+      const input = panel.querySelector('.eva-row[data-key="clockScale"] input[type="range"]');
+      if (!input) return false;
+      input.value = "1.4";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      const applied = getComputedStyle(document.documentElement).getPropertyValue("--eva-clock-scale").trim();
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => (r.selectorText || "").trim() === ".eva-clockpanel");
+      // transform-origin 的实际值是 "0px 0px"（带单位），不要写成 /^0 0/
+      const origin = rule ? (rule.style.transformOrigin || rule.style.webkitTransformOrigin || "") : "";
+      const scaled = Boolean(rule) && /--eva-clock-scale/.test(rule.style.transform || "") &&
+        /^0(px)?\s+0(px)?/.test(origin);
+      const ok = applied === "1.4" && scaled;
+      input.value = "1";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      return ok;
+    })(), (() => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--eva-clock-scale").trim();
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => (r.selectorText || "").trim() === ".eva-clockpanel");
+      return `变量=${v} transform=${rule ? rule.style.transform : "?"}`;
+    })());
+    check("左栏（时间 + 灯排）作为整体在右栏高度里垂直居中", (() => {
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => (r.selectorText || "").trim() === ".eva-cp-main");
+      return Boolean(rule) && /center/.test(rule.style.alignItems || "");
+    })(), (() => {
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => (r.selectorText || "").trim() === ".eva-cp-main");
+      return rule ? "align-items=" + (rule.style.alignItems || "(未设)") : "(无规则)";
+    })());
+
     // —— P5：启动自检 ——
     check("暴露 diagnose()：只读体检，返回命中/未命中", (() => {
       const api = globalThis.__EVA_MAGI_THEME__;
@@ -524,8 +568,8 @@ window.__ModuleLoader__ = {
       return bad ? "含:" + bad.join(",") : "未触碰尺寸属性";
     })());
 
-    check("面板含 12 个开关 + 2 个滑杆（浓度 / 仪表尺寸）",
-      swCount === 12 && rangeCount === 2, `switch=${swCount} range=${rangeCount}`);
+    check("面板含 12 个开关 + 3 个滑杆（浓度 / 仪表尺寸 / 时钟尺寸）",
+      swCount === 12 && rangeCount === 3, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch（循环控件除外）",
       [...panel.querySelectorAll(".eva-sw:not(.eva-cyc)")]
         .every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
