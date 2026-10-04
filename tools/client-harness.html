@@ -328,6 +328,29 @@ window.__ModuleLoader__ = {
       return ids.length === 10;
     })(), (() => [...layer.querySelectorAll("defs g")].map((g) => g.id).join(" "))());
 
+    check("播放/暂停图标不能写反：未播放显示 ▶，播放中显示 ⏸", (() => {
+      const rules = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      });
+      const find = (sel) => rules.find((r) => (r.selectorText || "").trim() === sel);
+      const playDefault = find(".eva-mp-ico-play");       // 默认态：play 应可见（不设 display:none）
+      const pauseDefault = find(".eva-mp-ico-pause");     // 默认态：pause 应隐藏
+      const pauseOnPlaying = rules.find((r) => r.selectorText &&
+        r.selectorText.includes('data-playing="1"') && r.selectorText.includes(".eva-mp-ico-pause"));
+      const playOnPlaying = rules.find((r) => r.selectorText &&
+        r.selectorText.includes('data-playing="1"') && r.selectorText.includes(".eva-mp-ico-play"));
+      return Boolean(pauseDefault) && /none/.test(pauseDefault.style.display || "") &&
+        !(playDefault && /none/.test(playDefault.style.display || "")) &&
+        Boolean(pauseOnPlaying) && /block/.test(pauseOnPlaying.style.display || "") &&
+        Boolean(playOnPlaying) && /none/.test(playOnPlaying.style.display || "");
+    })(), (() => {
+      const rules = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      });
+      return rules.filter((r) => r.selectorText && /eva-mp-ico/.test(r.selectorText))
+        .map((r) => r.selectorText.trim() + "=" + (r.style.display || "visible")).join(" | ");
+    })());
+
     // —— 音乐播放器 ——
     check("播放器面板存在：两个圆轮 + 三个按钮 + audio", (() => {
       const el = layer.querySelector(".eva-mp");

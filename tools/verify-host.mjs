@@ -11,6 +11,15 @@
  */
 
 import {
+	NP_APPS,
+	NOWPLAYING_PATH,
+	CONTROL_PATH,
+	READ_SCRIPT,
+	controlScript,
+	parseNowPlaying,
+} from "../lib/host-nowplaying.mjs";
+
+import {
 	BALANCE_PATH,
 	BALANCE_URL,
 	CREDENTIAL_ID,
@@ -113,6 +122,50 @@ eq("拒绝：余额字段缺失", parseBalance({ balance_infos: [{ currency: "CN
 eq("拒绝：payload 是 null", parseBalance(null), null);
 eq("拒绝：payload 是字符串", parseBalance("110"), null);
 eq("格式化：null 显示破折号", formatBalance(null), "—");
+
+// ============================================================
+// 「正在播放」：解析 + 控制脚本白名单
+// ============================================================
+// 注意：eq 是 === 比较，对象必须逐字段断言（或 stringify），否则永远不等
+const empty = parseNowPlaying("");
+eq("空输出：没有 app", empty.app, null);
+eq("空输出：playing 为假", empty.playing, false);
+eq("空输出：state 为空", empty.state, "");
+const blank = parseNowPlaying("   \n ");
+eq("仅空白同样视为没在放", blank.app === null && blank.playing === false, true);
+
+const music = parseNowPlaying("Music\tplaying\tSong A\tArtist B\tAlbum C\t215.5\t42.25");
+eq("Music 播放中：app", music.app, "Music");
+eq("Music 播放中：playing 为真", music.playing, true);
+eq("Music 播放中：曲名", music.title, "Song A");
+eq("Music 播放中：艺人", music.artist, "Artist B");
+eq("Music 播放中：时长（秒）", music.duration, 215.5);
+eq("Music 播放中：进度", music.position, 42.25);
+
+const spotify = parseNowPlaying("Spotify\tpaused\tTrack\tBand\tAlbum\t300\t10");
+eq("Spotify 暂停：playing 为假", spotify.playing, false);
+eq("Spotify 暂停：app", spotify.app, "Spotify");
+
+const broken = parseNowPlaying("Music\tplaying");
+eq("字段缺失时不产生 NaN", Number.isNaN(broken.duration) || broken.duration === 0, true);
+eq("字段缺失时 title 为空串", broken.title, "");
+const weird = parseNowPlaying("Music\tplaying\tX\tY\tZ\tabc\t-5");
+eq("非数字时长归零", weird.duration, 0);
+eq("负数进度归零", weird.position, 0);
+
+eq("控制脚本：Music playpause", /tell application "Music" to playpause/.test(controlScript("Music", "playpause")), true);
+eq("控制脚本：Spotify next", /tell application "Spotify" to next track/.test(controlScript("Spotify", "next")), true);
+eq("控制脚本：previous", /previous track/.test(controlScript("Music", "previous")), true);
+
+// —— 注入防护：这是这块最要紧的断言 ——
+eq("拒绝：不在白名单的 app", controlScript("Music; rm -rf /", "playpause"), null);
+eq("拒绝：不在白名单的 app（Spotify 拼串）", controlScript("Spotify\" & (do shell script \"x\")", "next"), null);
+eq("拒绝：不在白名单的 action", controlScript("Music", "playpause; do shell script \"rm -rf /\""), null);
+eq("拒绝：action 为空", controlScript("Music", ""), null);
+eq("拒绝：action 为 undefined", controlScript("Music", undefined), null);
+eq("白名单只有两个 app", NP_APPS.length === 2 && NP_APPS.includes("Music") && NP_APPS.includes("Spotify"), true);
+eq("只读脚本里不含任何插值占位", READ_SCRIPT.includes("%APP%"), false);
+eq("路由路径就位", NOWPLAYING_PATH === "/dsh-eva-magi/nowplaying.json" && CONTROL_PATH === "/dsh-eva-magi/nowplaying", true);
 
 // ============================================================
 // 结果
