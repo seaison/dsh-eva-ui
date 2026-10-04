@@ -281,3 +281,43 @@ DSH 的类名是 CSS-module 的 `Hash_name` 形式（`tPVXea_sectionLabel`、`WY
 不是容器** —— 例如插件标题的真实祖先链是 `nav.WYye1W_panelList → div.WYye1W_root`，
 **不在 `data-slot="sidebar.panellist"` 底下**。所以「从 slot 往下选」只在部分情况下成立，
 写之前必须实测链路。
+
+## 验证技法：像素级取证（把截图塞回浏览器）
+
+判断「屏幕上到底有没有某个颜色的东西」时，**不要靠肉眼看缩放后的截图** ——
+缩略图要经过缩放与 JPEG 重编码，高对比边缘会产生彩色压缩伪影，
+我据此误报过一次不存在的缺陷（见下）。
+
+可靠做法：把截图**塞回浏览器用 canvas 解码**，逐像素判定。这条链路不需要任何
+图像库，而且拿到坐标后还能用 `elementFromPoint` 把像素映射回 DOM：
+
+```js
+const shot = await send("Page.captureScreenshot", { format: "png" });
+// 在页面里：
+const img = new Image();
+img.src = "data:image/png;base64," + shot.data;
+await new Promise((res) => (img.onload = res));
+const cv = document.createElement("canvas");
+cv.width = img.width; cv.height = img.height;
+cv.getContext("2d").drawImage(img, 0, 0);
+const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+// 逐像素判定，例如「蓝色系」：b > 60 && b > r + 25 && b > g + 20
+```
+
+配合 `Page.captureScreenshot` 的 `clip` 参数，或直接把 canvas 裁切后
+`toDataURL()` 写回磁盘，就能得到**未经二次压缩**的局部原图 —— 放大看也不失真。
+
+### 教训：一条不存在的「蓝线」
+
+我曾报告「输入框左下有一条细蓝线」（列入 P8），并在坐标范围内扫描元素
+—— 结果**一个蓝色元素都没有**。最后用上面的方法逐像素判定：
+
+- 全屏 1600×913：蓝色像素 **0**；
+- 四种交互状态（初始 / 聚焦 / 输入后 / 全选）：**全部 0**；
+- 回头扫那张旧截图：蓝色像素**只有 81 个**，且全部集中在
+  **右上角 x 1480–1490 / y 20–30**（`rgb(10,115,145)`，是 app 工具栏里的图标），
+  与输入框无关；
+- 把旧截图的输入框区域裁出来（未经二次压缩）：蓝色像素 **0**，
+  那个位置其实是**红橙色的斜向警戒装饰**。
+
+结论：**这条蓝线是我自己看缩放 JPEG 时的误判**，不是缺陷。P8 关闭。
