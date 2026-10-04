@@ -475,35 +475,52 @@ window.__ModuleLoader__ = {
         !r.missing.some((m) => m.sel === ".WYye1W_root");
     })());
 
-    // —— 壁纸四态 ——
-    const wallRules = [...document.styleSheets].flatMap((sh) => {
+    // —— 背景：第 5 级高能預警画面 ——
+    const emgRules = [...document.styleSheets].flatMap((sh) => {
       try { return [...sh.cssRules]; } catch { return []; }
-    }).filter((r) => r.selectorText && /data-eva-wallpaper=/.test(r.selectorText));
-    check("壁纸有 4 态规则（atfield / tree / solar / off）", (() => {
-      const vals = ["atfield", "tree", "solar", "off"];
-      return vals.every((v) => wallRules.some((r) => r.selectorText.includes('"' + v + '"')));
-    })(), (() => wallRules.map((r) => r.selectorText.replace(/html\[data-eva-magi\]\s*/, "")).join(" | ").slice(0, 130))());
-    check("铺满型壁纸（AT 力场 / 太阳系）用 cover，生命之树用完整尺寸且不自转", (() => {
-      const find = (v) => wallRules.find((r) => r.selectorText.includes('"' + v + '"'));
-      const at = find("atfield"), so = find("solar"), tr = find("tree"), off = find("off");
-      if (!at || !so || !tr || !off) return false;
-      // 直接读长属性（mask-size / animation-name / display）：
-      // style.mask（简写 getter）对只写了长属性的规则会返回空串（踩过）。
-      const sizeOf = (r) => r.style.maskSize || r.style.webkitMaskSize || "";
-      const animOf = (r) => r.style.animationName || "";
-      return /cover/.test(sizeOf(at)) && /cover/.test(sizeOf(so)) &&
-        /min\(94vh/.test(sizeOf(tr)) && animOf(tr) === "none" &&
-        off.style.display === "none";
+    });
+    check("背景是层内 inline SVG（不再用掩膜），且三种分区闪烁都在", (() => {
+      const el = layer.querySelector(".eva-emg");
+      if (!el || !el.querySelector("svg")) return false;
+      const has = (cls) => emgRules.some((r) => r.selectorText && r.selectorText.includes(cls));
+      return has(".eva-emg-tiles") && has(".eva-emg-alert") && has(".eva-emg-magi");
     })(), (() => {
-      const find = (v) => wallRules.find((r) => r.selectorText.includes('"' + v + '"'));
-      return ["atfield", "tree", "solar", "off"].map((v) => {
-        const r = find(v);
-        if (!r) return v + ":(缺)";
-        const size = r.style.maskSize || r.style.webkitMaskSize || "(未设)";
-        const anim = r.style.animationName || "(未设)";
-        const disp = r.style.display || "(未设)";
-        return `${v}: size=${size} anim=${anim} display=${disp}`;
-      }).join(" | ");
+      const el = layer.querySelector(".eva-emg");
+      return el ? `svg=${Boolean(el.querySelector("svg"))}` : "(无背景)";
+    })());
+    check("闪烁用 steps(1) 硬闪（不是呼吸灯）且尊重 reduced-motion", (() => {
+      const anim = emgRules.filter((r) => r.selectorText && /eva-emg-(tiles|alert|magi)/.test(r.selectorText));
+      const kf = emgRules.filter((r) => r.type === CSSRule.KEYFRAMES_RULE && /^emg-blink/.test(r.name));
+      const reduce = emgRules.find((r) => r.media && String(r.conditionText || "").includes("prefers-reduced-motion"));
+      return anim.length === 3 && anim.every((r) => /steps\(1\)/.test(r.style.animation || r.style.animationTimingFunction || "")) &&
+        kf.length === 3 && Boolean(reduce);
+    })(), (() => emgRules.filter((r) => r.selectorText && /eva-emg-(tiles|alert|magi)/.test(r.selectorText))
+      .map((r) => r.selectorText.trim() + "=" + (r.style.animationDuration || "?")).join(" | "))());
+    check("红/白是各自的填充色（不是掩膜的单色）", (() => {
+      const el = layer.querySelector(".eva-emg");
+      if (!el) return false;
+      const svg = el.querySelector("svg");
+      return /#ff1a1a/i.test(svg.innerHTML) && /#f2f2f2/i.test(svg.innerHTML);
+    })());
+    check("背景默认开启，且开关能关掉它（行为断言）", (() => {
+      const el = layer.querySelector(".eva-emg");
+      if (!el) return false;
+      const html = document.documentElement;
+      const before = getComputedStyle(el).display;
+      const original = html.getAttribute("data-eva-wallpaper");   // 存原值
+      html.setAttribute("data-eva-wallpaper", "off");
+      const off = getComputedStyle(el).display;
+      // 恢复原值（不能只 removeAttribute —— 后面还有断言要读它，踩过）
+      if (original === null) html.removeAttribute("data-eva-wallpaper");
+      else html.setAttribute("data-eva-wallpaper", original);
+      return before !== "none" && off === "none" && html.getAttribute("data-eva-wallpaper") === original;
+    })());
+    check("平铺与中央面板都在 DOM 里（蜂窝 pattern + MAGI 三贤人）", (() => {
+      const el = layer.querySelector(".eva-emg");
+      if (!el) return false;
+      const html = el.innerHTML;
+      return /id="emg-pattern"/.test(html) && /Melchior/.test(html) && /Casper/.test(html) &&
+        /Balthasar/.test(html) && /高能預警/.test(html) && /検証中/.test(html);
     })());
 
     // —— P1 守卫：所有「黑底贴片」样式必须限定在深色主题 ——
@@ -639,48 +656,31 @@ window.__ModuleLoader__ = {
       return bad ? "含:" + bad.join(",") : "未触碰尺寸属性";
     })());
 
-    check("面板含 13 个开关 + 3 个滑杆（浓度 / 仪表尺寸 / 时钟尺寸）",
+    check("面板含 13 个开关 + 3 个滑杆（壁纸也变成开关了，总数不变）",
       swCount === 13 && rangeCount === 3, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch（循环控件除外）",
       [...panel.querySelectorAll(".eva-sw:not(.eva-cyc)")]
         .every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
-    check("壁纸循环控件带 data-key 与 aria-label，且不冒充 switch", (() => {
-      const c = panel.querySelector(".eva-cyc");
-      return Boolean(c) && Boolean(c.dataset.key) && Boolean(c.getAttribute("aria-label")) &&
-        c.getAttribute("role") !== "switch";
-    })());
 
     hudEl.click();
     check("点击仪表展开面板", panel.hidden === false);
     check("展开后 aria-expanded 同步", hudEl.getAttribute("aria-expanded") === "true");
 
     const wallBtn = panel.querySelector('button[data-key="wallpaper"]');
-    check("壁纸默认是「AT 力场」", wallBtn.getAttribute("aria-checked") === "true" && wallBtn.textContent === "AT 力场",
-      wallBtn.textContent);
-    check("默认把壁纸写进 <html> 标记", root.getAttribute("data-eva-wallpaper") === "atfield",
+    check("背景默认开启（开关显示「承認」）",
+      wallBtn.getAttribute("aria-checked") === "true" && wallBtn.textContent === "承認", wallBtn.textContent);
+    check("默认把背景写进 <html> 标记", root.getAttribute("data-eva-wallpaper") === "on",
       root.getAttribute("data-eva-wallpaper"));
     wallBtn.click();
-    check("点一下循环到下一个壁纸（AT 力场 → 生命之树）",
-      wallBtn.textContent === "生命之树" && root.getAttribute("data-eva-wallpaper") === "tree",
+    check("点一下关闭（否定 + 标记 off）",
+      wallBtn.getAttribute("aria-checked") === "false" && root.getAttribute("data-eva-wallpaper") === "off",
       wallBtn.textContent + " / " + root.getAttribute("data-eva-wallpaper"));
-    wallBtn.click(); wallBtn.click();
-    check("循环到「关闭」时 aria-checked 为 false",
-      wallBtn.textContent === "关闭" && wallBtn.getAttribute("aria-checked") === "false" &&
-      root.getAttribute("data-eva-wallpaper") === "off", wallBtn.textContent);
-    check("壁纸选择已存进 localStorage", (() => {
-      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).wallpaper === "off"; } catch { return false; }
+    check("背景开关已存进 localStorage", (() => {
+      try { return JSON.parse(localStorage.getItem(OPTIONS_KEY)).wallpaper === false; } catch { return false; }
     })());
     wallBtn.click();
-    check("再点一下回到第一个（关闭 → AT 力场）",
-      wallBtn.textContent === "AT 力场" && root.getAttribute("data-eva-wallpaper") === "atfield", wallBtn.textContent);
-
-    const strength = panel.querySelector('.eva-row[data-key="scanlineStrength"] input[type="range"]');
-    check("浓度滑杆按 data-key 定位（不依赖顺序）", Boolean(strength));
-    strength.value = "0.25";
-    strength.dispatchEvent(new Event("input", { bubbles: true }));
-    check("浓度滑杆写入 scanlineStrength", (() => {
-      try { return Math.abs(JSON.parse(localStorage.getItem(OPTIONS_KEY)).scanlineStrength - 0.25) < 1e-6; } catch { return false; }
-    })());
+    check("再点一下回到开启", wallBtn.getAttribute("aria-checked") === "true" &&
+      root.getAttribute("data-eva-wallpaper") === "on", wallBtn.textContent);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     check("Esc 收起面板", panel.hidden === true);
@@ -733,51 +733,6 @@ window.__ModuleLoader__ = {
       return Number.isFinite(min) && min > 60 && min < 400;
     })(), layer.querySelector(".eva-corner-stack").style.minWidth);
     // —— 右上角 TPS 波形面板 ——
-    check("太阳系装饰：铺满全屏 + 缓慢自转 + 旋转原点对准太阳", (() => {
-      // 用 CSSOM 逐属性断言：cssText 会把 animation 简写重排（实测是
-      // "240s linear 0s infinite normal none running eva-orbit"），正则写死会假失败。
-      const rule = [...document.styleSheets].flatMap((sh) => {
-        try { return [...sh.cssRules]; } catch { return []; }
-      }).find((r) => r.selectorText === ".eva-rings");
-      if (!rule) return false;
-      const st = rule.style;
-      const mask = st.mask || st.webkitMask || "";
-      // 基础规则只留通用部分（自转 / 原点 / 大正方形）；掩膜尺寸已按壁纸分规则，
-      // 所以「铺满」这件事要在壁纸规则里查（见下一条断言）。
-      return st.animationName === "eva-orbit" &&
-        st.animationDuration === "240s" &&
-        st.animationIterationCount === "infinite" &&
-        st.transformOrigin === "50% 50%" && st.width === "142vmax" && st.height === "142vmax";
-    })(), (() => {
-      const rule = [...document.styleSheets].flatMap((sh) => {
-        try { return [...sh.cssRules]; } catch { return []; }
-      }).find((r) => r.selectorText === ".eva-rings");
-      if (!rule) return "(未找到规则)";
-      const st = rule.style;
-      return `mask=${st.mask || st.webkitMask} anim=${st.animationName} ${st.animationDuration} origin=${st.transformOrigin} size=${st.width}`;
-    })());
-    check("太阳系装饰尊重「减少动态效果」设置", (() => {
-      const media = [...document.styleSheets].flatMap((sh) => {
-        try { return [...sh.cssRules]; } catch { return []; }
-      }).filter((r) => r.media).find((r) => {
-        const text = String(r.conditionText || (r.media && r.media.mediaText) || "");
-        return text.includes("prefers-reduced-motion");
-      });
-      if (!media) return false;
-      const inner = [...media.cssRules].find((r) => r.selectorText === ".eva-rings");
-      return Boolean(inner) && inner.style.animationName === "none";
-    })());
-    check("装饰元素上确实跑着 eva-orbit 动画（240s）", (() => {
-      const el = layer.querySelector(".eva-rings");
-      if (!el) return false;
-      const cs = getComputedStyle(el);
-      return cs.animationName === "eva-orbit" && cs.animationDuration === "240s";
-    })(), (() => {
-      const el = layer.querySelector(".eva-rings");
-      if (!el) return "(无元素)";
-      const cs = getComputedStyle(el);
-      return `${cs.animationName} / ${cs.animationDuration} / ${cs.animationTimingFunction}`;
-    })());
 
     check("两个方块都常亮（不再闪烁）", (() => {
       const a = layer.querySelector(".eva-tps-head i");
