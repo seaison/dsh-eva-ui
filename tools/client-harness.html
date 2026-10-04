@@ -46,7 +46,7 @@ window.__ModuleLoader__ = {
     check("exports.apply 是函数", typeof exports.apply === "function");
     check("exports.inject 只依赖 theme 服务", JSON.stringify(exports.inject) === '["theme"]', JSON.stringify(exports.inject));
     check("PALETTE 导出 107 个令牌", Object.keys(exports.PALETTE).length === 107, String(Object.keys(exports.PALETTE).length));
-    check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 16, Object.keys(exports.DEFAULT_OPTIONS).join(","));
+    check("DEFAULT_OPTIONS 导出 15 个开关", Object.keys(exports.DEFAULT_OPTIONS).length === 17, Object.keys(exports.DEFAULT_OPTIONS).join(","));
 
     // ---- 假的 Cordis 上下文：记录 effect 与令牌层调用，能真正回收 ----
     const makeCtx = (remote) => {
@@ -328,6 +328,54 @@ window.__ModuleLoader__ = {
       return ids.length === 10;
     })(), (() => [...layer.querySelectorAll("defs g")].map((g) => g.id).join(" "))());
 
+    // —— 音乐播放器 ——
+    check("播放器面板存在：两个圆轮 + 三个按钮 + audio", (() => {
+      const el = layer.querySelector(".eva-mp");
+      if (!el) return false;
+      return el.querySelectorAll(".eva-mp-ring").length === 2 &&
+        el.querySelectorAll(".eva-mp-btn").length === 3 &&
+        Boolean(el.querySelector("audio.eva-mp-audio")) &&
+        Boolean(el.querySelector('input[type="file"]'));
+    })(), (() => {
+      const el = layer.querySelector(".eva-mp");
+      if (!el) return "(无播放器)";
+      return `圆轮 ${el.querySelectorAll(".eva-mp-ring").length} · 按钮 ${el.querySelectorAll(".eva-mp-btn").length}`;
+    })());
+    check("圆轮默认暂停、播放时才转（animation-play-state 切换，不重排）", (() => {
+      const rules = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).filter((r) => r.selectorText && r.selectorText.includes(".eva-mp-ring"));
+      const base = rules.find((r) => r.selectorText.trim() === ".eva-mp-ring");
+      const playing = rules.find((r) => r.selectorText.includes('data-playing="1"'));
+      const spin = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).some((r) => r.type === CSSRule.KEYFRAMES_RULE && r.name === "mp-spin");
+      return Boolean(base) && /paused/.test(base.style.animationPlayState || "") &&
+        Boolean(playing) && /running/.test(playing.style.animationPlayState || "") && spin;
+    })(), (() => {
+      const rules = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).filter((r) => r.selectorText && r.selectorText.includes(".eva-mp-ring"));
+      return rules.map((r) => r.selectorText.trim() + "=" + (r.style.animationPlayState || "?")).join(" | ");
+    })());
+    check("播放器可交互（layer 是 pointer-events:none，这里必须显式打开）", (() => {
+      const rule = [...document.styleSheets].flatMap((sh) => {
+        try { return [...sh.cssRules]; } catch { return []; }
+      }).find((r) => (r.selectorText || "").trim() === ".eva-mp");
+      return Boolean(rule) && /auto/.test(rule.style.pointerEvents || "");
+    })());
+    check("音乐开关可关掉播放器（CSS 里有 data-eva-music=off 规则）", (() => {
+      // 行为断言：真切一下属性再看计算样式
+      const el = layer.querySelector(".eva-mp");
+      if (!el) return false;
+      const html = document.documentElement;
+      const before = getComputedStyle(el).display;
+      html.setAttribute("data-eva-music", "off");
+      const off = getComputedStyle(el).display;
+      html.removeAttribute("data-eva-music");
+      return before !== "none" && off === "none";
+    })());
+
     // —— 时钟尺寸可调 + 左栏整体居中 ——
     check("时钟尺寸滑杆存在（0.6–2，步进 0.05）", (() => {
       const input = panel.querySelector('.eva-row[data-key="clockScale"] input[type="range"]');
@@ -568,8 +616,8 @@ window.__ModuleLoader__ = {
       return bad ? "含:" + bad.join(",") : "未触碰尺寸属性";
     })());
 
-    check("面板含 12 个开关 + 3 个滑杆（浓度 / 仪表尺寸 / 时钟尺寸）",
-      swCount === 12 && rangeCount === 3, `switch=${swCount} range=${rangeCount}`);
+    check("面板含 13 个开关 + 3 个滑杆（浓度 / 仪表尺寸 / 时钟尺寸）",
+      swCount === 13 && rangeCount === 3, `switch=${swCount} range=${rangeCount}`);
     check("每个开关都带 data-key 与 role=switch（循环控件除外）",
       [...panel.querySelectorAll(".eva-sw:not(.eva-cyc)")]
         .every((b) => b.dataset.key && b.getAttribute("role") === "switch"));
